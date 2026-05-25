@@ -385,7 +385,7 @@ async function loadAll() {
       photos = photoData.map(p => ({
         id: p.id,
         // Dùng Google Drive thumbnail URL — hiển thị được mọi máy
-        src: p.driveId ? `https://drive.google.com/thumbnail?id=${p.driveId}&sz=w800` : (p.src || ''),
+        src: p.driveId ? `https://lh3.googleusercontent.com/d/${p.driveId}=w800` : (p.src || ''),
         driveId: p.driveId || '',
         caption: p.caption || '',
         date: p.date || '',
@@ -408,9 +408,8 @@ async function loadAll() {
     setTimeout(() => setProgress(0), 600);
 
     // Preload tất cả ảnh trong nền sau 1s
-    setTimeout(() => {
-      photos.forEach(p => preloadImage(p.src));
-    }, 1000);
+    photos.slice(0, 3).forEach(p => preloadImage(p.src));
+setTimeout(() => photos.slice(3).forEach(p => preloadImage(p.src)), 2000);
 
   } catch(e) {
     showStatus('Lỗi kết nối Google Sheet 😢');
@@ -437,7 +436,7 @@ async function handleUpload(e) {
       const result = await apiPost({action:'uploadPhoto', id, base64, caption:'', date:''});
       setProgress(90);
       if (result.ok && result.driveId) {
-        const src = `https://drive.google.com/thumbnail?id=${result.driveId}&sz=w800`;
+        const src = `https://lh3.googleusercontent.com/d/${result.driveId}=w800`;
         photos.push({id, src, driveId: result.driveId, caption:'', date:'', entries:[]});
         setProgress(100);
         showStatus('Đã lưu ảnh lên Drive ✓');
