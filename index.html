@@ -152,6 +152,43 @@
   ::-webkit-scrollbar { width:3px; }
   ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:#e8c5cc; border-radius:4px; }
+
+  /* LOVE COUNTER */
+  .love-counter {
+    background: linear-gradient(135deg, #fff0f3 0%, #fff8f0 100%);
+    border: 1px solid var(--rose-light);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 1.4rem 1.3rem 1.2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .love-counter::before {
+    content: '♡';
+    position: absolute; top: -10px; right: 14px;
+    font-size: 5rem; color: var(--rose-light); line-height: 1;
+    pointer-events: none;
+  }
+  .lc-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); font-weight: 500; margin-bottom: 0.5rem; }
+  .lc-days {
+    font-family: 'Playfair Display', serif;
+    font-size: 3.2rem; font-weight: 600;
+    color: var(--rose-dark); line-height: 1;
+    margin-bottom: 0.2rem;
+  }
+  .lc-days span { font-size: 1.1rem; font-weight: 400; color: var(--rose); margin-left: 4px; }
+  .lc-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 1rem; min-height: 1.1rem; }
+  .lc-units { display: flex; justify-content: center; gap: 0.6rem; margin-bottom: 1rem; }
+  .lc-unit { background: var(--white); border-radius: 10px; border: 1px solid var(--rose-light); padding: 0.4rem 0.6rem; min-width: 52px; }
+  .lc-unit-num { font-family: 'Playfair Display', serif; font-size: 1.1rem; color: var(--rose-dark); font-weight: 600; }
+  .lc-unit-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .lc-date-row { display: flex; align-items: center; gap: 6px; margin-top: 0.2rem; }
+  .lc-date-input { flex: 1; border: 1px solid #e8d5d9; border-radius: 8px; padding: 0.38rem 0.7rem; font-family: inherit; font-size: 0.83rem; color: var(--text); background: var(--white); transition: border .2s; text-align: center; }
+  .lc-date-input:focus { outline: none; border-color: var(--rose); }
+  .lc-save-btn { background: var(--rose); color: #fff; border: none; border-radius: 8px; padding: 0.38rem 0.8rem; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: .2s; white-space: nowrap; }
+  .lc-save-btn:hover { background: var(--rose-dark); }
+  .lc-hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; font-style: italic; }
 </style>
 </head>
 <body>
@@ -233,6 +270,23 @@
 
   <!-- SIDEBAR -->
   <div class="sidebar">
+
+    <!-- LOVE COUNTER -->
+    <div class="love-counter">
+      <div class="lc-label">Chúng mình đã bên nhau</div>
+      <div class="lc-days" id="lc-days">—<span>ngày</span></div>
+      <div class="lc-sub" id="lc-sub">Nhập ngày yêu bên dưới 💕</div>
+      <div class="lc-units" id="lc-units" style="display:none">
+        <div class="lc-unit"><div class="lc-unit-num" id="lc-years">0</div><div class="lc-unit-label">năm</div></div>
+        <div class="lc-unit"><div class="lc-unit-num" id="lc-months">0</div><div class="lc-unit-label">tháng</div></div>
+        <div class="lc-unit"><div class="lc-unit-num" id="lc-weeks">0</div><div class="lc-unit-label">tuần</div></div>
+      </div>
+      <div class="lc-date-row">
+        <input type="date" class="lc-date-input" id="lc-date-input" title="Ngày bắt đầu yêu nhau">
+        <button class="lc-save-btn" onclick="saveLoveDate()">Lưu ♡</button>
+      </div>
+      <div class="lc-hint" id="lc-hint">Chọn ngày hai bạn bắt đầu yêu nhau</div>
+    </div>
 
     <!-- PHOTO MANAGER -->
     <div class="panel">
@@ -529,6 +583,68 @@ function showToast(msg) {
 }
 
 document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') nextSlide(); if(e.key==='ArrowLeft') prevSlide(); });
+
+// ── LOVE COUNTER ──
+function saveLoveDate() {
+  const val = document.getElementById('lc-date-input').value;
+  if (!val) { showToast('Chọn ngày trước nhé! 📅'); return; }
+  localStorage.setItem('loveStartDate', val);
+  updateLoveCounter();
+  showToast('Đã lưu ngày yêu 💕');
+}
+
+function updateLoveCounter() {
+  const saved = localStorage.getItem('loveStartDate');
+  const input = document.getElementById('lc-date-input');
+  if (!saved) return;
+  input.value = saved;
+
+  const start = new Date(saved);
+  start.setHours(0,0,0,0);
+  const now = new Date();
+  now.setHours(0,0,0,0);
+
+  if (start > now) {
+    document.getElementById('lc-days').innerHTML = '?<span>ngày</span>';
+    document.getElementById('lc-sub').textContent = 'Ngày đó chưa đến... 🌸';
+    document.getElementById('lc-units').style.display = 'none';
+    document.getElementById('lc-hint').textContent = 'Ngày bạn đã chọn là trong tương lai';
+    return;
+  }
+
+  const diffMs = now - start;
+  const totalDays = Math.floor(diffMs / 86400000);
+
+  // years / months / weeks
+  let y = now.getFullYear() - start.getFullYear();
+  let m = now.getMonth() - start.getMonth();
+  if (m < 0) { y--; m += 12; }
+  const weeks = Math.floor(totalDays / 7);
+
+  document.getElementById('lc-days').innerHTML = totalDays.toLocaleString('vi-VN') + '<span>ngày</span>';
+
+  // milestone messages
+  let msg = '';
+  if (totalDays === 0) msg = 'Hôm nay là ngày đầu tiên 🥹';
+  else if (totalDays === 100) msg = '🎉 Tròn 100 ngày bên nhau!';
+  else if (totalDays === 365) msg = '🎂 Tròn 1 năm yêu nhau!';
+  else if (totalDays % 365 === 0) msg = `🎉 Tròn ${totalDays/365} năm rồi!`;
+  else if (totalDays % 100 === 0) msg = `✨ Tròn ${totalDays} ngày đặc biệt!`;
+  else {
+    const nextMile = totalDays < 100 ? 100 : Math.ceil(totalDays/100)*100;
+    const daysLeft = nextMile - totalDays;
+    msg = `Còn ${daysLeft} ngày nữa là tròn ${nextMile} ngày 🌷`;
+  }
+  document.getElementById('lc-sub').textContent = msg;
+  document.getElementById('lc-years').textContent = y;
+  document.getElementById('lc-months').textContent = m;
+  document.getElementById('lc-weeks').textContent = weeks;
+  document.getElementById('lc-units').style.display = 'flex';
+  document.getElementById('lc-hint').textContent = 'Kể từ ' + start.toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+updateLoveCounter();
+setInterval(updateLoveCounter, 60000);
 
 renderSlide();
 renderTracks();
