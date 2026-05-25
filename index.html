@@ -292,12 +292,16 @@
           <input type="range" class="volume" id="vol-slider" min="0" max="1" step="0.05" value="0.7" oninput="setVolume(this.value)">
           <span>🔊</span>
         </div>
+        <!-- YouTube player ẩn -->
+        <div id="yt-container" style="display:none;margin-bottom:.5rem;border-radius:10px;overflow:hidden;">
+          <iframe id="yt-frame" width="100%" height="80" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display:block;border-radius:10px;"></iframe>
+        </div>
         <div class="track-list" id="track-list"></div>
         <div class="add-track">
           <label>Thêm bài hát mới</label>
           <input type="text" id="track-name-in" placeholder="Tên bài hát">
           <input type="text" id="track-artist-in" placeholder="Ca sĩ">
-          <input type="text" id="track-url-in" placeholder="Link nhạc (.mp3 trực tiếp)">
+          <input type="text" id="track-url-in" placeholder="Link YouTube hoặc link .mp3">
           <button class="btn-add-track" onclick="addTrack()">+ Thêm &amp; Lưu</button>
         </div>
       </div>
@@ -591,6 +595,23 @@ function renderDiary() {
 }
 
 // ── MUSIC ──
+function getYouTubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /youtu\.be\/([^?&]+)/,
+    /youtube\.com\/watch\?.*v=([^&]+)/,
+    /youtube\.com\/embed\/([^?&]+)/,
+    /youtube\.com\/shorts\/([^?&]+)/
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function isYouTube(url) { return !!getYouTubeId(url); }
+
 function renderTracks() {
   document.getElementById('track-list').innerHTML = tracks.length === 0
     ? '<div style="font-size:.8rem;color:var(--muted);padding:.3rem .5rem;font-style:italic;">Chưa có bài nào. Thêm bài bên dưới!</div>'
@@ -599,32 +620,89 @@ function renderTracks() {
       <div class="track-num">${i===currentTrack&&isPlaying?'♪':i+1}</div>
       <div class="track-info">
         <div class="track-name">${escHtml(t.name)}</div>
-        <div class="track-name-artist">${escHtml(t.artist)}</div>
+        <div class="track-name-artist">${escHtml(t.artist)} ${isYouTube(t.url)?'<span style="font-size:.65rem;background:#ff4444;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px;">YT</span>':''}</div>
       </div>
       <button class="track-del-btn" onclick="deleteTrack(event,${i})">✕</button>
     </div>`).join('');
 }
 
+let ytBarTimer = null;
+
 function playTrack(i) {
   currentTrack = i;
-  document.getElementById('now-title').textContent = tracks[i].name;
-  document.getElementById('now-artist').textContent = tracks[i].artist;
-  if (!tracks[i].url) { showStatus('Bài này chưa có link nhạc 🎵'); renderTracks(); return; }
-  audio.src = tracks[i].url;
-  audio.volume = parseFloat(document.getElementById('vol-slider').value);
-  audio.play().then(() => { isPlaying=true; document.getElementById('play-btn').textContent='⏸'; renderTracks(); })
-       .catch(() => showStatus('Không thể phát. Kiểm tra link nhé!'));
+  const t = tracks[i];
+  document.getElementById('now-title').textContent = t.name;
+  document.getElementById('now-artist').textContent = t.artist;
+  renderTracks();
+
+  if (!t.url) { showStatus('Bài này chưa có link 🎵'); return; }
+
+  const ytId = getYouTubeId(t.url);
+  if (ytId) {
+    // YouTube mode
+    audio.pause(); audio.src = '';
+    clearInterval(ytBarTimer);
+    const frame = document.getElementById('yt-frame');
+    const container = document.getElementById('yt-container');
+    // autoplay=1, mute cần 0 để có tiếng, nhưng YT yêu cầu tương tác trước
+    frame.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1`;
+    container.style.display = 'block';
+    document.getElementById('volume-row') && (document.getElementById('vol-slider').style.opacity='0.4');
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+    // giả lập progress bar
+    document.getElementById('music-bar').style.width = '0%';
+    let fake = 0;
+    ytBarTimer = setInterval(() => {
+      fake = Math.min(fake + 0.15, 98);
+      document.getElementById('music-bar').style.width = fake + '%';
+    }, 1000);
+  } else {
+    // MP3 mode
+    document.getElementById('yt-container').style.display = 'none';
+    document.getElementById('yt-frame').src = '';
+    clearInterval(ytBarTimer);
+    audio.src = t.url;
+    audio.volume = parseFloat(document.getElementById('vol-slider').value);
+    audio.play()
+      .then(() => { isPlaying=true; document.getElementById('play-btn').textContent='⏸'; renderTracks(); })
+      .catch(() => showStatus('Không thể phát. Kiểm tra link nhé!'));
+  }
 }
 
 function togglePlay() {
   if (currentTrack < 0 && tracks.length) { playTrack(0); return; }
-  if (audio.paused) { audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; }); }
-  else { audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
+  const ytId = currentTrack >= 0 ? getYouTubeId(tracks[currentTrack].url) : null;
+  if (ytId) {
+    // với YouTube chỉ có thể reload hoặc dừng bằng cách xóa src
+    if (isPlaying) {
+      document.getElementById('yt-frame').src = '';
+      document.getElementById('yt-container').style.display = 'none';
+      clearInterval(ytBarTimer);
+      isPlaying = false;
+      document.getElementById('play-btn').textContent = '▶';
+    } else {
+      playTrack(currentTrack);
+    }
+  } else {
+    if (audio.paused) {
+      audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; });
+    } else {
+      audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶';
+    }
+  }
 }
 
-function setVolume(v) { audio.volume=v; }
-audio.addEventListener('timeupdate', () => { if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
-audio.addEventListener('ended', () => { if(tracks.length) playTrack((currentTrack+1)%tracks.length); });
+function setVolume(v) {
+  audio.volume = v;
+  // YouTube volume không điều chỉnh được qua iframe thường, hiển thị note
+}
+audio.addEventListener('timeupdate', () => {
+  if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%';
+});
+audio.addEventListener('ended', () => {
+  if(tracks.length) playTrack((currentTrack+1)%tracks.length);
+});
 
 async function addTrack() {
   const name = document.getElementById('track-name-in').value.trim();
