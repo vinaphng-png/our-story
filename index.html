@@ -375,23 +375,22 @@ async function loadAll() {
   setProgress(10);
   showStatus('Đang tải dữ liệu... ⏳', 10000);
   try {
-    // load photos + music in parallel
     const [photoData, musicData] = await Promise.all([
       apiGet({action:'getPhotos'}),
       apiGet({action:'getMusic'})
     ]);
     setProgress(60);
 
-    // photos
     if (Array.isArray(photoData)) {
       photos = photoData.map(p => ({
         id: p.id,
-        src: p.src || '',
+        // Dùng Google Drive thumbnail URL — hiển thị được mọi máy
+        src: p.driveId ? `https://drive.google.com/thumbnail?id=${p.driveId}&sz=w800` : (p.src || ''),
+        driveId: p.driveId || '',
         caption: p.caption || '',
         date: p.date || '',
         entries: []
       }));
-      // load diary for each photo
       for (let i = 0; i < photos.length; i++) {
         try {
           const diary = await apiGet({action:'getDiary', photoId: photos[i].id});
@@ -401,7 +400,6 @@ async function loadAll() {
     }
     setProgress(85);
 
-    // music
     if (Array.isArray(musicData)) {
       tracks = musicData.map(t => ({name:t.name, artist:t.artist, url:t.url}));
     }
@@ -409,8 +407,13 @@ async function loadAll() {
     showStatus('Đã tải xong ✓');
     setTimeout(() => setProgress(0), 600);
 
+    // Preload tất cả ảnh trong nền sau 1s
+    setTimeout(() => {
+      photos.forEach(p => preloadImage(p.src));
+    }, 1000);
+
   } catch(e) {
-    showStatus('Lỗi kết nối Google Sheet 😢 — dữ liệu chỉ lưu tạm');
+    showStatus('Lỗi kết nối Google Sheet 😢');
     setProgress(0);
   }
 
@@ -425,21 +428,29 @@ async function handleUpload(e) {
   const files = Array.from(e.target.files);
   e.target.value = '';
   for (const f of files) {
-    showStatus(`Đang nén & lưu "${f.name}"... ⏳`, 15000);
-    setProgress(30);
+    showStatus(`Đang upload "${f.name}" lên Drive... ⏳`, 20000);
+    setProgress(20);
     try {
-      const src = await compressImage(f);
+      const base64 = await compressImage(f, 1200, 0.82);
+      setProgress(50);
       const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      setProgress(60);
-      await apiPost({action:'addPhoto', id, src, caption:'', date:''});
-      photos.push({id, src, caption:'', date:'', entries:[]});
-      setProgress(100);
-      showStatus('Đã lưu ảnh ✓');
-      setTimeout(() => setProgress(0), 500);
-      renderThumbs();
-      goToSlide(photos.length - 1);
+      const result = await apiPost({action:'uploadPhoto', id, base64, caption:'', date:''});
+      setProgress(90);
+      if (result.ok && result.driveId) {
+        const src = `https://drive.google.com/thumbnail?id=${result.driveId}&sz=w800`;
+        photos.push({id, src, driveId: result.driveId, caption:'', date:'', entries:[]});
+        setProgress(100);
+        showStatus('Đã lưu ảnh lên Drive ✓');
+        setTimeout(() => setProgress(0), 500);
+        renderThumbs();
+        goToSlide(photos.length - 1);
+      } else {
+        showStatus('Lỗi lưu ảnh — thử lại nhé 😢');
+        setProgress(0);
+      }
     } catch(err) {
-      showStatus('Lỗi lưu ảnh 😢');
+      console.error(err);
+      showStatus('Lỗi upload ảnh 😢');
       setProgress(0);
     }
   }
@@ -461,10 +472,28 @@ async function deletePhoto(e, i) {
   }
 }
 
+// ── IMAGE CACHE & PRELOAD ──
+const imgCache = {}; // url -> HTMLImageElement (loaded)
+
+function preloadImage(url) {
+  if (!url || imgCache[url]) return;
+  const img = new Image();
+  img.src = url;
+  imgCache[url] = img;
+}
+
+function preloadNeighbors() {
+  if (photos.length <= 1) return;
+  const next = (current + 1) % photos.length;
+  const prev = (current - 1 + photos.length) % photos.length;
+  preloadImage(photos[next].src);
+  preloadImage(photos[prev].src);
+}
+
 function renderThumbs() {
   document.getElementById('thumb-grid').innerHTML = photos.map((p,i) => `
     <div class="thumb ${i===current?'active-thumb':''}" onclick="goToSlide(${i})">
-      <img src="${p.src}" alt="">
+      <img src="${p.src}" alt="" loading="lazy">
       <button class="thumb-del" onclick="deletePhoto(event,${i})">✕</button>
     </div>`).join('');
   document.getElementById('photo-count-label').textContent = photos.length + ' ảnh';
@@ -508,10 +537,33 @@ function renderSlide() {
   diaryForm.style.display = 'flex';
   diaryNoPhoto.style.display = 'none';
 
+  const url = photos[current].src;
   const img = document.createElement('img');
-  img.className = 'slide-img active';
-  img.src = photos[current].src;
+  img.className = 'slide-img';
+  img.style.filter = 'blur(8px)';
+  img.style.transform = 'scale(1.04)';
+  img.style.transition = 'filter .5s ease, transform .5s ease';
+
+  // Nếu đã cache → hiện ngay, không blur
+  if (imgCache[url] && imgCache[url].complete) {
+    img.src = url;
+    img.style.filter = 'none';
+    img.style.transform = 'scale(1)';
+    img.classList.add('active');
+  } else {
+    img.src = url;
+    img.classList.add('active');
+    img.onload = () => {
+      img.style.filter = 'none';
+      img.style.transform = 'scale(1)';
+      imgCache[url] = img;
+    };
+  }
+
   vp.insertBefore(img, document.getElementById('slide-controls'));
+
+  // preload ảnh lân cận trong nền
+  setTimeout(preloadNeighbors, 300);
 
   document.getElementById('si-caption').textContent = photos[current].caption || '♡ Khoảnh khắc của chúng mình';
   document.getElementById('si-date').textContent = photos[current].date || '';
