@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Story 💕</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&family=Caveat:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rose: #c9637a;
+    --rose-light: #f5e0e5;
+    --rose-dark: #8b3a4e;
+    --cream: #fdf6f0;
+    --warm: #f2e8df;
+    --paper: #fffdf7;
+    --text: #2d2020;
+    --muted: #7a5c62;
+    --gold: #c4956a;
+    --white: #fff;
+    --shadow: 0 8px 40px rgba(180,80,100,0.13);
+    --ink: #3a2a2a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--cream); font-family: 'DM Sans', sans-serif; color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  header { text-align: center; padding: 3rem 1rem 1.5rem; }
+  .heart-deco { font-size: 1.2rem; letter-spacing: 8px; color: var(--rose); opacity: 0.5; margin-bottom: 0.5rem; display: block; }
+  header h1 { font-family: 'Playfair Display', serif; font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 400; color: var(--rose-dark); line-height: 1.2; }
+  header h1 em { font-style: italic; color: var(--rose); }
+  header p.subtitle { margin-top: 0.4rem; font-size: 0.85rem; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 300; }
+  .divider { width: 50px; height: 1px; background: linear-gradient(90deg, transparent, var(--rose), transparent); margin: 1rem auto; }
+
+  /* LAYOUT */
+  .container { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem 4rem; display: grid; grid-template-columns: 1fr 340px; gap: 2rem; align-items: start; }
+  @media(max-width:820px){ .container { grid-template-columns: 1fr; } }
+
+  /* SLIDESHOW */
+  .slideshow-card { background: var(--white); border-radius: 24px; box-shadow: var(--shadow); overflow: hidden; }
+  .slide-viewport { position: relative; width: 100%; aspect-ratio: 4/3; background: var(--warm); overflow: hidden; }
+  .slide-img { width: 100%; height: 100%; object-fit: cover; display: none; animation: fadeIn 0.6s ease; }
+  .slide-img.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:scale(1.03); } to { opacity:1; transform:scale(1); } }
+  .no-photo { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; color:var(--muted); }
+  .no-photo svg { opacity:0.3; }
+  .no-photo p { font-size:0.88rem; }
+  .slide-controls { position:absolute; top:50%; transform:translateY(-50%); width:100%; display:flex; justify-content:space-between; padding:0 12px; pointer-events:none; }
+  .slide-btn { pointer-events:all; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,0.85); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--rose-dark); font-size:1.2rem; transition:.2s; backdrop-filter:blur(4px); }
+  .slide-btn:hover { background:var(--white); transform:scale(1.08); }
+  .slide-counter { position:absolute; bottom:10px; right:14px; background:rgba(0,0,0,0.32); color:#fff; font-size:0.75rem; padding:2px 9px; border-radius:20px; backdrop-filter:blur(4px); }
+  .slide-dots { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); display:flex; gap:5px; }
+  .dot { width:6px; height:6px; border-radius:50%; background:rgba(255,255,255,0.5); cursor:pointer; transition:.2s; }
+  .dot.active { background:#fff; transform:scale(1.3); }
+
+  /* SLIDE INFO / CAPTION */
+  .slide-info { padding: 1rem 1.4rem 0.7rem; border-bottom: 1px solid var(--rose-light); display: flex; align-items: flex-start; gap: 0.8rem; }
+  .slide-info-text { flex: 1; }
+  .slide-date { font-size:0.75rem; color:var(--gold); text-transform:uppercase; letter-spacing:1.5px; font-weight:500; }
+  .slide-caption { font-family:'Playfair Display',serif; font-size:1.05rem; color:var(--rose-dark); margin-top:2px; }
+
+  /* PHOTO CAPTION inline edit */
+  .caption-edit-btn { background:none; border:1px solid #e8d5d9; border-radius:8px; padding:4px 10px; font-size:0.75rem; color:var(--muted); cursor:pointer; white-space:nowrap; transition:.15s; align-self:center; }
+  .caption-edit-btn:hover { border-color:var(--rose); color:var(--rose); }
+  .caption-edit-panel { display:none; padding: 0.7rem 1.4rem 0.8rem; border-bottom:1px solid var(--rose-light); gap:0.4rem; flex-direction:column; }
+  .caption-edit-panel.open { display:flex; }
+  .caption-edit-panel input { border:1px solid #e8d5d9; border-radius:8px; padding:0.38rem 0.7rem; font-family:inherit; font-size:0.85rem; color:var(--text); background:var(--white); transition:border .2s; }
+  .caption-edit-panel input:focus { outline:none; border-color:var(--rose); }
+  .caption-save-btn { background:var(--rose); color:#fff; border:none; border-radius:16px; padding:0.35rem 1rem; font-size:0.8rem; font-family:inherit; cursor:pointer; align-self:flex-start; transition:.2s; }
+  .caption-save-btn:hover { background:var(--rose-dark); }
+
+  /* DIARY / COMMENTS */
+  .diary-section { padding: 1.2rem 1.4rem 1.5rem; }
+  .diary-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+  .diary-title { font-family:'Playfair Display',serif; font-size:1rem; color:var(--rose-dark); }
+  .diary-count { font-size:0.75rem; color:var(--muted); background:var(--rose-light); border-radius:20px; padding:2px 10px; }
+
+  /* diary entries */
+  .diary-entries { display:flex; flex-direction:column; gap:0; max-height:260px; overflow-y:auto; margin-bottom:1rem; }
+  .diary-entry { position:relative; padding: 0.9rem 1rem 0.9rem 3rem; border-left:2px solid var(--rose-light); margin-left:0.6rem; }
+  .diary-entry:last-child { border-left: 2px solid transparent; }
+  .diary-dot { position:absolute; left:-6px; top:1.1rem; width:10px; height:10px; border-radius:50%; background:var(--rose-light); border:2px solid var(--rose); flex-shrink:0; }
+  .diary-entry-date { font-size:0.72rem; color:var(--gold); font-weight:500; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+  .diary-entry-author { font-size:0.75rem; color:var(--muted); margin-bottom:5px; }
+  .diary-entry-text { font-family:'Caveat', cursive; font-size:1.05rem; color:var(--ink); line-height:1.55; }
+  .diary-del { position:absolute; top:0.8rem; right:0.5rem; background:none; border:none; color:#ddb8be; font-size:0.8rem; cursor:pointer; opacity:0; transition:.15s; padding:2px 5px; border-radius:4px; }
+  .diary-entry:hover .diary-del { opacity:1; }
+  .diary-del:hover { color:var(--rose); }
+  .no-entries { font-size:0.85rem; color:var(--muted); font-style:italic; padding:0.5rem 0 0.5rem 0.5rem; }
+
+  /* diary form — notebook style */
+  .diary-form { background:var(--paper); border-radius:14px; border:1px solid #f0ddd8; padding:1rem 1.1rem; display:flex; flex-direction:column; gap:0.5rem; }
+  .diary-form-header { font-family:'Caveat', cursive; font-size:0.95rem; color:var(--muted); border-bottom:1px dashed #e8d5d9; padding-bottom:0.4rem; margin-bottom:0.2rem; display:flex; gap:0.6rem; align-items:center; }
+  .diary-form-date { font-size:0.8rem; color:var(--gold); font-family:'DM Sans',sans-serif; font-weight:500; }
+  .diary-form input, .diary-form textarea { border:none; background:transparent; font-family:'DM Sans',sans-serif; font-size:0.85rem; color:var(--text); resize:none; padding:0; outline:none; border-bottom:1px dashed #e8d5d9; padding-bottom:0.3rem; }
+  .diary-form textarea { font-family:'Caveat',cursive; font-size:1.05rem; min-height:70px; line-height:1.6; border-bottom:none; }
+  .diary-form textarea::placeholder, .diary-form input::placeholder { color:#cbb5ba; }
+  .diary-form-actions { display:flex; justify-content:flex-end; }
+  .btn-diary { background:var(--rose); color:#fff; border:none; border-radius:20px; padding:0.4rem 1.3rem; font-family:inherit; font-size:0.82rem; cursor:pointer; transition:.2s; }
+  .btn-diary:hover { background:var(--rose-dark); transform:translateY(-1px); }
+
+  /* SIDEBAR */
+  .sidebar { display:flex; flex-direction:column; gap:1.4rem; }
+  .panel { background:var(--white); border-radius:20px; box-shadow:var(--shadow); overflow:hidden; }
+  .panel-header { padding:0.85rem 1.2rem 0.6rem; border-bottom:1px solid var(--rose-light); display:flex; align-items:center; justify-content:space-between; }
+  .panel-title { font-family:'Playfair Display',serif; font-size:0.95rem; color:var(--rose-dark); }
+  .panel-body { padding:0.9rem 1.2rem; }
+
+  /* UPLOAD — compact */
+  .upload-zone { border:1.5px dashed #e8c5cc; border-radius:10px; padding:0.8rem 0.8rem; text-align:center; cursor:pointer; transition:.2s; color:var(--muted); font-size:0.82rem; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .upload-zone:hover { border-color:var(--rose); background:var(--rose-light); }
+  #file-input { display:none; }
+  .thumb-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:0.6rem; }
+  .thumb { aspect-ratio:1; border-radius:7px; overflow:hidden; cursor:pointer; position:relative; border:2px solid transparent; transition:.15s; }
+  .thumb.active-thumb { border-color:var(--rose); }
+  .thumb img { width:100%; height:100%; object-fit:cover; }
+  .thumb-del { position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%; background:rgba(0,0,0,0.5); color:#fff; border:none; font-size:10px; cursor:pointer; line-height:16px; text-align:center; opacity:0; transition:.15s; }
+  .thumb:hover .thumb-del { opacity:1; }
+
+  /* MUSIC */
+  .auto-row { display:flex; align-items:center; justify-content:space-between; font-size:0.8rem; color:var(--muted); margin-bottom:0.65rem; }
+  .toggle { width:34px; height:18px; background:#ddd; border-radius:10px; position:relative; cursor:pointer; transition:.2s; }
+  .toggle.on { background:var(--rose); }
+  .toggle::after { content:''; position:absolute; top:3px; left:3px; width:12px; height:12px; border-radius:50%; background:#fff; transition:.2s; }
+  .toggle.on::after { left:19px; }
+  .music-player { display:flex; align-items:center; gap:9px; margin-bottom:0.7rem; }
+  .play-btn { width:38px; height:38px; border-radius:50%; background:var(--rose); border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1rem; flex-shrink:0; transition:.2s; }
+  .play-btn:hover { background:var(--rose-dark); transform:scale(1.05); }
+  .now-playing { flex:1; overflow:hidden; }
+  .now-title { font-size:0.85rem; font-weight:500; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .now-artist { font-size:0.72rem; color:var(--muted); }
+  .music-progress { height:2px; background:var(--rose-light); border-radius:4px; margin-bottom:0.7rem; }
+  .music-bar { height:100%; background:var(--rose); border-radius:4px; width:0%; transition:width .5s linear; }
+  .volume-row { display:flex; align-items:center; gap:7px; margin-bottom:0.7rem; font-size:0.85rem; color:var(--muted); }
+  input[type=range].volume { flex:1; -webkit-appearance:none; height:2px; background:var(--rose-light); border-radius:4px; outline:none; }
+  input[type=range].volume::-webkit-slider-thumb { -webkit-appearance:none; width:13px; height:13px; border-radius:50%; background:var(--rose); cursor:pointer; }
+  .track-list { display:flex; flex-direction:column; gap:1px; max-height:200px; overflow-y:auto; }
+  .track-item { display:flex; align-items:center; gap:7px; padding:0.4rem 0.5rem; border-radius:9px; cursor:pointer; transition:.15s; }
+  .track-item:hover, .track-item.playing { background:var(--rose-light); }
+  .track-num { font-size:0.75rem; color:var(--muted); width:16px; text-align:center; flex-shrink:0; }
+  .track-info { flex:1; overflow:hidden; }
+  .track-name { font-size:0.82rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .track-name-artist { font-size:0.7rem; color:var(--muted); }
+  .track-del-btn { background:none; border:none; color:#ccc; font-size:0.85rem; cursor:pointer; padding:2px 4px; border-radius:4px; opacity:0; transition:.15s; }
+  .track-item:hover .track-del-btn { opacity:1; color:var(--rose); }
+  .add-track { display:flex; flex-direction:column; gap:0.4rem; margin-top:0.7rem; padding-top:0.7rem; border-top:1px solid var(--rose-light); }
+  .add-track label { font-size:0.73rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+  .add-track input { border:1px solid #e8d5d9; border-radius:7px; padding:0.35rem 0.65rem; font-family:inherit; font-size:0.82rem; color:var(--text); background:var(--white); transition:border .2s; }
+  .add-track input:focus { outline:none; border-color:var(--rose); }
+  .btn-add-track { background:var(--rose); color:#fff; border:none; border-radius:20px; padding:0.35rem 0.9rem; font-family:inherit; font-size:0.8rem; cursor:pointer; align-self:flex-start; transition:.2s; }
+  .btn-add-track:hover { background:var(--rose-dark); }
+
+  ::-webkit-scrollbar { width:3px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#e8c5cc; border-radius:4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="heart-deco">♡ ♡ ♡</span>
+  <h1>Our <em>Love Story</em></h1>
+  <p class="subtitle">Những khoảnh khắc đáng nhớ của chúng mình</p>
+  <div class="divider"></div>
+</header>
+
+<div class="container">
+
+  <!-- LEFT: SLIDESHOW + DIARY -->
+  <div>
+    <div class="slideshow-card">
+
+      <!-- Viewport -->
+      <div class="slide-viewport" id="viewport">
+        <div class="no-photo" id="no-photo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p>Hãy thêm ảnh của hai bạn ở bên phải 💕</p>
+        </div>
+        <div class="slide-controls" id="slide-controls" style="display:none">
+          <button class="slide-btn" onclick="prevSlide()">&#8592;</button>
+          <button class="slide-btn" onclick="nextSlide()">&#8594;</button>
+        </div>
+        <div class="slide-counter" id="counter" style="display:none">1 / 1</div>
+        <div class="slide-dots" id="dots"></div>
+      </div>
+
+      <!-- Caption bar -->
+      <div class="slide-info" id="slide-info" style="display:none">
+        <div class="slide-info-text">
+          <div class="slide-date" id="si-date"></div>
+          <div class="slide-caption" id="si-caption"></div>
+        </div>
+        <button class="caption-edit-btn" onclick="toggleCaptionEdit()">✏ Sửa</button>
+      </div>
+      <div class="caption-edit-panel" id="caption-edit-panel">
+        <input type="text" id="meta-caption" placeholder="Tiêu đề ảnh...">
+        <input type="text" id="meta-date" placeholder="Ngày... (vd: 14/02/2024)">
+        <button class="caption-save-btn" onclick="saveMeta()">Lưu ✓</button>
+      </div>
+
+      <!-- DIARY SECTION -->
+      <div class="diary-section">
+        <div class="diary-header">
+          <span class="diary-title">📖 Nhật ký khoảnh khắc</span>
+          <span class="diary-count" id="diary-count">0 trang</span>
+        </div>
+
+        <div class="diary-entries" id="diary-entries">
+          <span class="no-entries">Chưa có dòng nào. Hãy viết điều gì đó... 🌷</span>
+        </div>
+
+        <!-- Notebook-style form -->
+        <div class="diary-form" id="diary-form-box" style="display:none">
+          <div class="diary-form-header">
+            <span>✍ Viết trang mới</span>
+            <span class="diary-form-date" id="form-today"></span>
+          </div>
+          <input type="text" id="diary-author" placeholder="Tên bạn (vd: Minh, Linh...)">
+          <textarea id="diary-text" placeholder="Hôm nay chúng mình cùng nhau..."></textarea>
+          <div class="diary-form-actions">
+            <button class="btn-diary" onclick="addDiaryEntry()">Lưu vào nhật ký 🌸</button>
+          </div>
+        </div>
+
+        <div id="diary-no-photo" style="font-size:0.82rem;color:var(--muted);font-style:italic;margin-top:0.3rem;">Thêm ảnh để bắt đầu viết nhật ký ✨</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- PHOTO MANAGER -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📷 Ảnh của chúng mình</span>
+        <span style="font-size:0.75rem;color:var(--muted)" id="photo-count-label">0 ảnh</span>
+      </div>
+      <div class="panel-body">
+        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Tải ảnh lên
+        </div>
+        <input type="file" id="file-input" multiple accept="image/*" onchange="handleUpload(event)">
+        <div class="thumb-grid" id="thumb-grid"></div>
+      </div>
+    </div>
+
+    <!-- MUSIC -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">🎵 Nhạc nền</span>
+      </div>
+      <div class="panel-body">
+        <div class="auto-row">
+          <span>Tự động phát</span>
+          <div class="toggle on" id="auto-toggle" onclick="toggleAuto()"></div>
+        </div>
+        <div class="music-player">
+          <button class="play-btn" id="play-btn" onclick="togglePlay()">▶</button>
+          <div class="now-playing">
+            <div class="now-title" id="now-title">Chưa chọn bài</div>
+            <div class="now-artist" id="now-artist">—</div>
+          </div>
+        </div>
+        <div class="music-progress"><div class="music-bar" id="music-bar"></div></div>
+        <div class="volume-row">
+          <span>🔈</span>
+          <input type="range" class="volume" id="vol-slider" min="0" max="1" step="0.05" value="0.7" oninput="setVolume(this.value)">
+          <span>🔊</span>
+        </div>
+        <div class="track-list" id="track-list"></div>
+        <div class="add-track">
+          <label>Thêm bài hát</label>
+          <input type="text" id="track-name-in" placeholder="Tên bài hát">
+          <input type="text" id="track-artist-in" placeholder="Ca sĩ">
+          <input type="text" id="track-url-in" placeholder="Link nhạc (.mp3)">
+          <button class="btn-add-track" onclick="addTrack()">+ Thêm</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<audio id="audio-player" style="display:none"></audio>
+
+<script>
+let photos = [];
+let current = 0;
+let autoSlide = true;
+let slideTimer = null;
+let captionEditOpen = false;
+
+let tracks = [
+  { name: "Perfect", artist: "Ed Sheeran", url: "" },
+  { name: "All of Me", artist: "John Legend", url: "" },
+  { name: "A Thousand Years", artist: "Christina Perri", url: "" },
+];
+let currentTrack = -1;
+let isPlaying = false;
+const audio = document.getElementById('audio-player');
+
+// ── PHOTOS ──
+function handleUpload(e) {
+  Array.from(e.target.files).forEach(f => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      photos.push({ src: ev.target.result, caption: '', date: '', entries: [] });
+      renderThumbs();
+      goToSlide(photos.length - 1);
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value = '';
+}
+
+function renderThumbs() {
+  document.getElementById('thumb-grid').innerHTML = photos.map((p, i) => `
+    <div class="thumb ${i===current?'active-thumb':''}" onclick="goToSlide(${i})">
+      <img src="${p.src}" alt="">
+      <button class="thumb-del" onclick="deletePhoto(event,${i})">✕</button>
+    </div>
+  `).join('');
+  document.getElementById('photo-count-label').textContent = photos.length + ' ảnh';
+}
+
+function deletePhoto(e, i) {
+  e.stopPropagation();
+  photos.splice(i, 1);
+  if (current >= photos.length) current = Math.max(0, photos.length - 1);
+  renderThumbs();
+  renderSlide();
+}
+
+function goToSlide(i) {
+  current = i;
+  if (captionEditOpen) toggleCaptionEdit(false);
+  renderSlide();
+  renderThumbs();
+  resetTimer();
+}
+
+function renderSlide() {
+  const vp = document.getElementById('viewport');
+  vp.querySelectorAll('.slide-img').forEach(el => el.remove());
+
+  const noPhoto = document.getElementById('no-photo');
+  const controls = document.getElementById('slide-controls');
+  const counter = document.getElementById('counter');
+  const slideInfo = document.getElementById('slide-info');
+  const diaryForm = document.getElementById('diary-form-box');
+  const diaryNoPhoto = document.getElementById('diary-no-photo');
+
+  if (photos.length === 0) {
+    noPhoto.style.display = 'flex';
+    controls.style.display = 'none';
+    counter.style.display = 'none';
+    slideInfo.style.display = 'none';
+    diaryForm.style.display = 'none';
+    diaryNoPhoto.style.display = 'block';
+    document.getElementById('dots').innerHTML = '';
+    renderDiary();
+    return;
+  }
+
+  noPhoto.style.display = 'none';
+  controls.style.display = photos.length > 1 ? 'flex' : 'none';
+  counter.style.display = 'block';
+  counter.textContent = `${current+1} / ${photos.length}`;
+  slideInfo.style.display = 'flex';
+  diaryForm.style.display = 'flex';
+  diaryNoPhoto.style.display = 'none';
+
+  const img = document.createElement('img');
+  img.className = 'slide-img active';
+  img.src = photos[current].src;
+  vp.insertBefore(img, document.getElementById('slide-controls'));
+
+  document.getElementById('si-caption').textContent = photos[current].caption || '♡ Khoảnh khắc của chúng mình';
+  document.getElementById('si-date').textContent = photos[current].date || '';
+  document.getElementById('meta-caption').value = photos[current].caption;
+  document.getElementById('meta-date').value = photos[current].date;
+
+  document.getElementById('dots').innerHTML = photos.slice(0,10).map((_,i)=>`<div class="dot ${i===current?'active':''}" onclick="goToSlide(${i})"></div>`).join('');
+
+  // set today date in form
+  document.getElementById('form-today').textContent = new Date().toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
+
+  renderDiary();
+}
+
+function toggleCaptionEdit(force) {
+  captionEditOpen = (force !== undefined) ? force : !captionEditOpen;
+  document.getElementById('caption-edit-panel').classList.toggle('open', captionEditOpen);
+}
+
+function saveMeta() {
+  if (!photos.length) return;
+  photos[current].caption = document.getElementById('meta-caption').value;
+  photos[current].date = document.getElementById('meta-date').value;
+  document.getElementById('si-caption').textContent = photos[current].caption || '♡ Khoảnh khắc của chúng mình';
+  document.getElementById('si-date').textContent = photos[current].date || '';
+  toggleCaptionEdit(false);
+  showToast('Đã lưu thông tin ảnh 💾');
+}
+
+function prevSlide() { if(!photos.length) return; goToSlide((current-1+photos.length)%photos.length); }
+function nextSlide() { if(!photos.length) return; goToSlide((current+1)%photos.length); }
+function resetTimer() { clearInterval(slideTimer); if(autoSlide && photos.length>1) slideTimer=setInterval(nextSlide,5000); }
+function toggleAuto() { autoSlide=!autoSlide; document.getElementById('auto-toggle').classList.toggle('on',autoSlide); resetTimer(); }
+
+// ── DIARY ──
+function addDiaryEntry() {
+  if (!photos.length) return;
+  const author = document.getElementById('diary-author').value.trim();
+  const text = document.getElementById('diary-text').value.trim();
+  if (!text) { showToast('Hãy viết điều gì đó trước nhé 🌷'); return; }
+  const now = new Date();
+  photos[current].entries.push({
+    author: author || 'Ẩn danh',
+    text,
+    date: now.toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'long', year:'numeric'}),
+    time: now.toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})
+  });
+  document.getElementById('diary-author').value = '';
+  document.getElementById('diary-text').value = '';
+  renderDiary();
+  showToast('Đã lưu vào nhật ký 📖');
+}
+
+function deleteDiaryEntry(idx) {
+  photos[current].entries.splice(idx, 1);
+  renderDiary();
+}
+
+function renderDiary() {
+  const container = document.getElementById('diary-entries');
+  const countEl = document.getElementById('diary-count');
+  if (!photos.length || photos[current].entries.length === 0) {
+    container.innerHTML = '<span class="no-entries">Chưa có dòng nào. Hãy viết điều gì đó... 🌷</span>';
+    countEl.textContent = '0 trang';
+    return;
+  }
+  const entries = photos[current].entries;
+  countEl.textContent = entries.length + ' trang';
+  container.innerHTML = entries.map((e, i) => `
+    <div class="diary-entry">
+      <div class="diary-dot"></div>
+      <div class="diary-entry-date">${e.date} · ${e.time}</div>
+      <div class="diary-entry-author">— ${escHtml(e.author)}</div>
+      <div class="diary-entry-text">${escHtml(e.text)}</div>
+      <button class="diary-del" onclick="deleteDiaryEntry(${i})">✕</button>
+    </div>
+  `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── MUSIC ──
+function renderTracks() {
+  document.getElementById('track-list').innerHTML = tracks.map((t,i) => `
+    <div class="track-item ${i===currentTrack?'playing':''}" onclick="playTrack(${i})">
+      <div class="track-num">${i===currentTrack&&isPlaying?'♪':i+1}</div>
+      <div class="track-info">
+        <div class="track-name">${escHtml(t.name)}</div>
+        <div class="track-name-artist">${escHtml(t.artist)}</div>
+      </div>
+      <button class="track-del-btn" onclick="deleteTrack(event,${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function playTrack(i) {
+  currentTrack = i;
+  document.getElementById('now-title').textContent = tracks[i].name;
+  document.getElementById('now-artist').textContent = tracks[i].artist;
+  if (!tracks[i].url) { showToast('Bài này chưa có link nhạc 🎵'); renderTracks(); return; }
+  audio.src = tracks[i].url;
+  audio.volume = parseFloat(document.getElementById('vol-slider').value);
+  audio.play().then(() => { isPlaying=true; document.getElementById('play-btn').textContent='⏸'; }).catch(()=>showToast('Không thể phát. Kiểm tra link nhé!'));
+  renderTracks();
+}
+
+function togglePlay() {
+  if (currentTrack < 0 && tracks.length) { playTrack(0); return; }
+  if (audio.paused) { audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; }); }
+  else { audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
+}
+
+function setVolume(v) { audio.volume=v; }
+audio.addEventListener('timeupdate', ()=>{ if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
+audio.addEventListener('ended', ()=>{ playTrack((currentTrack+1)%tracks.length); });
+
+function addTrack() {
+  const name=document.getElementById('track-name-in').value.trim();
+  const artist=document.getElementById('track-artist-in').value.trim();
+  const url=document.getElementById('track-url-in').value.trim();
+  if (!name) { showToast('Nhập tên bài hát trước nhé!'); return; }
+  tracks.push({name, artist:artist||'Không rõ', url});
+  document.getElementById('track-name-in').value='';
+  document.getElementById('track-artist-in').value='';
+  document.getElementById('track-url-in').value='';
+  renderTracks();
+  showToast('Đã thêm bài hát 🎶');
+}
+
+function deleteTrack(e,i) {
+  e.stopPropagation();
+  if(i===currentTrack){audio.pause();isPlaying=false;currentTrack=-1;document.getElementById('play-btn').textContent='▶';}
+  tracks.splice(i,1);
+  if(currentTrack>i) currentTrack--;
+  renderTracks();
+}
+
+// ── UTILS ──
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg) {
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2d2020;color:#fff;padding:10px 22px;border-radius:30px;font-size:0.85rem;z-index:999;opacity:0;transition:opacity .3s;white-space:nowrap;font-family:DM Sans,sans-serif';document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0';},2800);
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='ArrowRight') nextSlide(); if(e.key==='ArrowLeft') prevSlide(); });
+
+renderSlide();
+renderTracks();
+resetTimer();
+</script>
+</body>
+</html>
