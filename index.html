@@ -348,6 +348,8 @@
 <audio id="audio-player" style="display:none"></audio>
 
 <script>
+const API_URL = "https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec";
+
 let photos = [];
 let current = 0;
 let autoSlide = true;
@@ -364,16 +366,44 @@ let isPlaying = false;
 const audio = document.getElementById('audio-player');
 
 // ── PHOTOS ──
-function handleUpload(e) {
-  Array.from(e.target.files).forEach(f => {
+async function handleUpload(e) {
+
+  const files = Array.from(e.target.files);
+
+  for (const f of files) {
+
     const reader = new FileReader();
-    reader.onload = ev => {
-      photos.push({ src: ev.target.result, caption: '', date: '', entries: [] });
+
+    reader.onload = async ev => {
+
+      const photo = {
+        src: ev.target.result,
+        caption: '',
+        date: '',
+        entries: []
+      };
+
+      photos.push(photo);
+
       renderThumbs();
+
       goToSlide(photos.length - 1);
+
+      // lưu lên Google Sheet
+      await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          type: "photo",
+          data: photo
+        })
+      });
+
+      showToast("Đã lưu ảnh ☁️");
     };
+
     reader.readAsDataURL(f);
-  });
+  }
+
   e.target.value = '';
 }
 
@@ -457,7 +487,35 @@ function toggleCaptionEdit(force) {
   document.getElementById('caption-edit-panel').classList.toggle('open', captionEditOpen);
 }
 
-function saveMeta() {
+async function saveMeta() {
+
+  if (!photos.length) return;
+
+  photos[current].caption =
+    document.getElementById('meta-caption').value;
+
+  photos[current].date =
+    document.getElementById('meta-date').value;
+
+  document.getElementById('si-caption').textContent =
+    photos[current].caption || '♡ Khoảnh khắc của chúng mình';
+
+  document.getElementById('si-date').textContent =
+    photos[current].date || '';
+
+  toggleCaptionEdit(false);
+
+  await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "updatePhoto",
+      index: current,
+      data: photos[current]
+    })
+  });
+
+  showToast('Đã lưu thông tin ảnh 💾');
+}
   if (!photos.length) return;
   photos[current].caption = document.getElementById('meta-caption').value;
   photos[current].date = document.getElementById('meta-date').value;
@@ -473,7 +531,57 @@ function resetTimer() { clearInterval(slideTimer); if(autoSlide && photos.length
 function toggleAuto() { autoSlide=!autoSlide; document.getElementById('auto-toggle').classList.toggle('on',autoSlide); resetTimer(); }
 
 // ── DIARY ──
-function addDiaryEntry() {
+async function addDiaryEntry() {
+
+  if (!photos.length) return;
+
+  const author =
+    document.getElementById('diary-author').value.trim();
+
+  const text =
+    document.getElementById('diary-text').value.trim();
+
+  if (!text) {
+    showToast('Hãy viết điều gì đó trước nhé 🌷');
+    return;
+  }
+
+  const now = new Date();
+
+  const entry = {
+    author: author || 'Ẩn danh',
+    text,
+    date: now.toLocaleDateString('vi-VN', {
+      weekday:'long',
+      day:'2-digit',
+      month:'long',
+      year:'numeric'
+    }),
+    time: now.toLocaleTimeString('vi-VN', {
+      hour:'2-digit',
+      minute:'2-digit'
+    })
+  };
+
+  photos[current].entries.push(entry);
+
+  document.getElementById('diary-author').value = '';
+  document.getElementById('diary-text').value = '';
+
+  renderDiary();
+
+  // SAVE TO SHEET
+  await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "diary",
+      photoIndex: current,
+      data: entry
+    })
+  });
+
+  showToast('Đã lưu vào nhật ký 📖');
+}
   if (!photos.length) return;
   const author = document.getElementById('diary-author').value.trim();
   const text = document.getElementById('diary-text').value.trim();
@@ -553,7 +661,47 @@ function setVolume(v) { audio.volume=v; }
 audio.addEventListener('timeupdate', ()=>{ if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
 audio.addEventListener('ended', ()=>{ playTrack((currentTrack+1)%tracks.length); });
 
-function addTrack() {
+async function addTrack() {
+
+  const name =
+    document.getElementById('track-name-in').value.trim();
+
+  const artist =
+    document.getElementById('track-artist-in').value.trim();
+
+  const url =
+    document.getElementById('track-url-in').value.trim();
+
+  if (!name) {
+    showToast('Nhập tên bài hát trước nhé!');
+    return;
+  }
+
+  const track = {
+    name,
+    artist: artist || 'Không rõ',
+    url
+  };
+
+  tracks.push(track);
+
+  document.getElementById('track-name-in').value='';
+  document.getElementById('track-artist-in').value='';
+  document.getElementById('track-url-in').value='';
+
+  renderTracks();
+
+  // SAVE TO SHEET
+  await fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      type: "music",
+      data: track
+    })
+  });
+
+  showToast('Đã thêm bài hát 🎶');
+}
   const name=document.getElementById('track-name-in').value.trim();
   const artist=document.getElementById('track-artist-in').value.trim();
   const url=document.getElementById('track-url-in').value.trim();
@@ -646,9 +794,41 @@ function updateLoveCounter() {
 updateLoveCounter();
 setInterval(updateLoveCounter, 60000);
 
-renderSlide();
-renderTracks();
-resetTimer();
+async function loadData() {
+
+  try {
+
+    const res = await fetch(API_URL);
+
+    const data = await res.json();
+
+    photos = data.photos || [];
+
+    tracks = data.music || tracks;
+
+    renderThumbs();
+
+    renderSlide();
+
+    renderTracks();
+
+    resetTimer();
+
+  } catch(err) {
+
+    console.error(err);
+
+    renderSlide();
+
+    renderTracks();
+
+    resetTimer();
+
+    showToast("Không load được dữ liệu ☁️");
+  }
+}
+
+loadData();
 </script>
 </body>
 </html>
