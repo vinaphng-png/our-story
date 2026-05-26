@@ -896,9 +896,10 @@ async function saveLoveDate() {
 }
 
 function updateLoveCounter() {
-  const saved = '2024-12-05';
-  const start = new Date(saved); start.setHours(0, 0, 0, 0);
-  const now   = new Date();      now.setHours(0, 0, 0, 0);
+  // Hardcode ngày 05/12/2024 — dùng local time tránh lệch UTC
+  const start = new Date(2024, 11, 5); // tháng 11 = December (0-indexed)
+  start.setHours(0, 0, 0, 0);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
   if (start > now) {
     document.getElementById('lc-days').innerHTML = '?<span>ngày</span>';
     document.getElementById('lc-sub').textContent = 'Ngày đó chưa đến... 🌸';
@@ -922,7 +923,7 @@ function updateLoveCounter() {
   document.getElementById('lc-months').textContent = m;
   document.getElementById('lc-weeks').textContent  = Math.floor(totalDays / 7);
   document.getElementById('lc-units').style.display = 'flex';
-  document.getElementById('lc-hint').textContent = 'Kể từ ' + start.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  document.getElementById('lc-hint').textContent = 'Kể từ 05/12/2024 💕';
 }
 
 // ════════════════════════════════════════════════════
