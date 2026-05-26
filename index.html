@@ -348,8 +348,7 @@ async function ghRead() {
   }
   const json = await res.json();
   _dataSha = json.sha;
-  const decoded = JSON.parse(atob(json.content.replace(/
-/g, '')));
+  const decoded = JSON.parse(atob(json.content.split('\n').join('')));
   return decoded;
 }
 
