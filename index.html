@@ -91,7 +91,6 @@
   .upload-zone.dragover{border-color:var(--rose);background:var(--rose-light);transform:scale(1.01);}
   #file-input{display:none;}
 
-  /* UPLOAD PROGRESS */
   .upload-queue{display:flex;flex-direction:column;gap:5px;margin-top:.6rem;display:none;}
   .upload-queue.visible{display:flex;}
   .upload-item{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted);}
@@ -273,10 +272,7 @@
           Tải nhiều ảnh cùng lúc
         </div>
         <input type="file" id="file-input" multiple accept="image/*" onchange="handleUpload(event)">
-
-        <!-- Upload queue hiển thị tiến độ từng ảnh -->
         <div class="upload-queue" id="upload-queue"></div>
-
         <div class="thumb-grid" id="thumb-grid"></div>
       </div>
     </div>
@@ -325,13 +321,11 @@
 
 <script>
 // ════════════════════════════════════════════════════
-//  CẤU HÌNH
+//  CẤU HÌNH — chỉ cần sửa 3 dòng này nếu đổi tài khoản
 // ════════════════════════════════════════════════════
-const GAS_API = 'https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec';
-
-// ── Cloudinary – upload thẳng từ browser, không qua GAS ──
-const CLD_CLOUD  = 'dhd3rh8kv';
-const CLD_PRESET = 'Our Memory';   // upload preset Unsigned
+const GAS_API      = 'https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec';
+const CLD_CLOUD    = 'dhd3rh8kv';
+const CLD_PRESET   = 'Our Memory';   // tên preset giữ nguyên, có dấu cách cũng OK
 const CLD_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLD_CLOUD}/image/upload`;
 
 // ════════════════════════════════════════════════════
@@ -351,7 +345,7 @@ const audio = document.getElementById('audio-player');
 //  UI HELPERS
 // ════════════════════════════════════════════════════
 function setProgress(pct) { document.getElementById('loading-bar').style.width = pct + '%'; }
-function showStatus(msg, dur=3000) {
+function showStatus(msg, dur = 3000) {
   const b = document.getElementById('status-badge');
   b.textContent = msg; b.style.opacity = '1';
   clearTimeout(b._t);
@@ -359,32 +353,47 @@ function showStatus(msg, dur=3000) {
 }
 function escHtml(s) {
   return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ════════════════════════════════════════════════════
-//  GAS (Google Apps Script) – chỉ dùng cho metadata & diary
+//  GAS — dùng XMLHttpRequest để follow redirect (fix CORS GitHub Pages)
 // ════════════════════════════════════════════════════
-async function gasGet(params) {
-  const url = GAS_API + '?' + new URLSearchParams(params);
-  const res = await fetch(url);
-  return res.json();
+function gasGet(params) {
+  return new Promise((resolve, reject) => {
+    const url = GAS_API + '?' + new URLSearchParams(params);
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 15000;
+    xhr.onload = () => {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (e) { reject(new Error('Parse error: ' + xhr.responseText)); }
+    };
+    xhr.onerror   = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error('Timeout'));
+    xhr.send();
+  });
 }
-async function gasPost(body) {
-  const res = await fetch(GAS_API, { method:'POST', body: JSON.stringify(body) });
-  return res.json();
+
+function gasPost(body) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', GAS_API, true);
+    xhr.timeout = 15000;
+    xhr.onload = () => {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (e) { reject(new Error('Parse error: ' + xhr.responseText)); }
+    };
+    xhr.onerror   = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error('Timeout'));
+    xhr.send(JSON.stringify(body));
+  });
 }
 
 // ════════════════════════════════════════════════════
-//  CLOUDINARY UPLOAD – trực tiếp từ trình duyệt
-//  Không cần base64 → file gốc → nhanh & chất lượng cao
+//  CLOUDINARY — upload trực tiếp từ trình duyệt
 // ════════════════════════════════════════════════════
-
-/**
- * Upload 1 file lên Cloudinary, có progress callback.
- * Trả về { publicId, url } khi thành công.
- */
 function uploadToCloudinary(file, onProgress) {
   return new Promise((resolve, reject) => {
     const fd = new FormData();
@@ -401,22 +410,31 @@ function uploadToCloudinary(file, onProgress) {
     xhr.onload = () => {
       if (xhr.status === 200) {
         const data = JSON.parse(xhr.responseText);
-        // URL tự động CDN, ai cũng truy cập được, không cần đăng nhập
+        console.log('✅ Cloudinary OK:', data.public_id);
         resolve({ publicId: data.public_id, url: data.secure_url });
       } else {
-        reject(new Error('Cloudinary error ' + xhr.status));
+        // Log lỗi chi tiết để dễ debug
+        console.error('❌ Cloudinary lỗi', xhr.status, xhr.responseText);
+        let msg = 'Upload lỗi ' + xhr.status;
+        try {
+          const err = JSON.parse(xhr.responseText);
+          if (err.error && err.error.message) msg = err.error.message;
+        } catch (_) {}
+        reject(new Error(msg));
       }
     };
-    xhr.onerror = () => reject(new Error('Network error'));
+
+    xhr.onerror = () => {
+      console.error('❌ Network error khi upload Cloudinary');
+      reject(new Error('Lỗi mạng khi upload'));
+    };
+
     xhr.send(fd);
   });
 }
 
-/**
- * Tạo URL thumbnail từ publicId Cloudinary.
- * w=800, q=auto, f=auto → Cloudinary tự chọn format tốt nhất (WebP/AVIF).
- */
-function cldThumbUrl(publicId, w=800) {
+// URL thumbnail tối ưu (WebP/AVIF tự động, resize về w px)
+function cldThumbUrl(publicId, w = 800) {
   return `https://res.cloudinary.com/${CLD_CLOUD}/image/upload/w_${w},q_auto,f_auto/${publicId}`;
 }
 
@@ -429,69 +447,87 @@ function createQueueItem(name) {
   el.innerHTML = `
     <span class="upload-item-status">⏳</span>
     <span class="upload-item-name" title="${escHtml(name)}">${escHtml(name)}</span>
-    <div class="upload-item-bar-wrap"><div class="upload-item-bar" id="bar-${CSS.escape(name)}"></div></div>`;
+    <div class="upload-item-bar-wrap"><div class="upload-item-bar"></div></div>`;
   return el;
 }
 function updateQueueItem(el, pct, done, error) {
   const bar = el.querySelector('.upload-item-bar');
   const ico = el.querySelector('.upload-item-status');
   if (bar) bar.style.width = pct + '%';
-  if (done) { ico.textContent = '✓'; bar.style.background = '#6abe8a'; }
-  if (error) { ico.textContent = '✕'; bar.style.background = '#e07070'; }
+  if (done)  { ico.textContent = '✓'; if (bar) bar.style.background = '#6abe8a'; }
+  if (error) { ico.textContent = '✕'; if (bar) bar.style.background = '#e07070'; }
 }
 
 // ════════════════════════════════════════════════════
-//  LOAD TẤT CẢ DỮ LIỆU KHI KHỞI ĐỘNG
+//  LOAD DỮ LIỆU KHI MỞ TRANG
 // ════════════════════════════════════════════════════
 async function loadAll() {
   setProgress(10);
-  showStatus('Đang tải dữ liệu... ⏳', 15000);
+  showStatus('Đang tải dữ liệu... ⏳', 20000);
   try {
-    const [photoData, musicData] = await Promise.all([
-      gasGet({ action:'getPhotos' }),
-      gasGet({ action:'getMusic' })
+    // Load ảnh, nhạc, và ngày yêu cùng lúc
+    const [photoData, musicData, settingsData] = await Promise.all([
+      gasGet({ action: 'getPhotos' }),
+      gasGet({ action: 'getMusic' }),
+      gasGet({ action: 'getSettings' })   // ← load ngày yêu từ Sheet
     ]);
     setProgress(50);
 
+    // Xử lý ảnh
     if (Array.isArray(photoData)) {
-      // Mỗi photo có thể lưu theo 2 dạng:
-      //   - cldPublicId : dùng Cloudinary (mới)
-      //   - driveId     : dùng Google Drive (cũ) – vẫn tương thích
       photos = photoData.map(p => {
         let src = '';
         if (p.cldPublicId) {
           src = cldThumbUrl(p.cldPublicId);
         } else if (p.driveId) {
-          // Cố gắng dùng URL public Drive (cần file đã share)
           src = `https://lh3.googleusercontent.com/d/${p.driveId}`;
         } else {
           src = p.src || '';
         }
-        return { id: p.id, src, cldPublicId: p.cldPublicId||'', driveId: p.driveId||'', caption: p.caption||'', date: p.date||'', entries:[] };
+        return {
+          id: p.id,
+          src,
+          cldPublicId: p.cldPublicId || '',
+          driveId: p.driveId || '',
+          caption: p.caption || '',
+          date: p.date || '',
+          entries: []
+        };
       });
 
-      // Load diary song song cho tất cả ảnh
+      // Load diary song song
       await Promise.all(photos.map(async (ph) => {
         try {
-          const diary = await gasGet({ action:'getDiary', photoId: ph.id });
+          const diary = await gasGet({ action: 'getDiary', photoId: ph.id });
           if (Array.isArray(diary)) ph.entries = diary;
-        } catch(e) {}
+        } catch (e) {
+          console.warn('Không load được diary cho', ph.id);
+        }
       }));
     }
-    setProgress(85);
 
+    // Xử lý nhạc
     if (Array.isArray(musicData)) {
-      tracks = musicData.map(t => ({ name:t.name, artist:t.artist, url:t.url }));
+      tracks = musicData.map(t => ({ name: t.name, artist: t.artist, url: t.url }));
     }
+
+    // ══ Xử lý ngày yêu — ưu tiên từ Sheet, fallback localStorage ══
+    if (settingsData && settingsData.loveDate) {
+      // Lưu vào localStorage để dùng offline/nhanh
+      localStorage.setItem('loveStartDate', settingsData.loveDate);
+    }
+
     setProgress(100);
     showStatus('Đã tải xong ✓');
     setTimeout(() => setProgress(0), 600);
 
-  } catch(e) {
-    showStatus('Lỗi kết nối 😢');
+  } catch (e) {
+    console.error('loadAll error:', e);
+    showStatus('Lỗi kết nối 😢 — dùng dữ liệu local tạm thời');
     setProgress(0);
   }
 
+  updateLoveCounter();   // Cập nhật love counter sau khi load xong
   renderSlide();
   renderThumbs();
   renderTracks();
@@ -510,43 +546,61 @@ async function handleUpload(e) {
   queue.innerHTML = '';
   queue.classList.add('visible');
 
-  // Tạo UI hàng chờ cho tất cả ảnh ngay lập tức
   const items = files.map(f => {
     const el = createQueueItem(f.name);
     queue.appendChild(el);
     return { file: f, el };
   });
 
-  // Upload TẤT CẢ song song (Promise.all)
+  let successCount = 0;
+  let failCount = 0;
+
   await Promise.all(items.map(async ({ file, el }) => {
     try {
+      // Bước 1: Upload lên Cloudinary
       const { publicId, url } = await uploadToCloudinary(file, pct => {
         updateQueueItem(el, pct, false, false);
       });
 
-      // Lưu metadata (publicId) vào Google Sheet qua GAS
-      const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      await gasPost({ action:'uploadPhoto', id, cldPublicId: publicId, caption:'', date:'' });
+      // Bước 2: Lưu publicId vào Google Sheet qua GAS
+      const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+      const saveResult = await gasPost({
+        action: 'uploadPhoto',
+        id,
+        cldPublicId: publicId,
+        caption: '',
+        date: ''
+      });
 
-      // Thêm vào danh sách ảnh ngay, không chờ reload
-      photos.push({ id, src: url, cldPublicId: publicId, driveId:'', caption:'', date:'', entries:[] });
+      if (saveResult && saveResult.error) {
+        throw new Error('GAS lỗi: ' + saveResult.error);
+      }
+
+      // Bước 3: Hiển thị ngay mà không cần reload
+      photos.push({ id, src: url, cldPublicId: publicId, driveId: '', caption: '', date: '', entries: [] });
       updateQueueItem(el, 100, true, false);
       renderThumbs();
+      successCount++;
 
-    } catch(err) {
-      console.error(err);
+    } catch (err) {
+      console.error('Upload thất bại:', file.name, err.message);
       updateQueueItem(el, 0, false, true);
+      failCount++;
     }
   }));
 
-  // Ẩn queue sau 3 giây
   setTimeout(() => {
     queue.classList.remove('visible');
     queue.innerHTML = '';
-  }, 3000);
+  }, 4000);
 
   if (photos.length > 0) goToSlide(photos.length - 1);
-  showStatus(`Đã tải lên ${files.length} ảnh ✓`);
+
+  if (failCount === 0) {
+    showStatus(`✓ Đã tải lên ${successCount} ảnh thành công`);
+  } else {
+    showStatus(`⚠ ${successCount} ảnh OK, ${failCount} ảnh lỗi — xem Console (F12)`);
+  }
 }
 
 // ════════════════════════════════════════════════════
@@ -557,13 +611,13 @@ async function deletePhoto(e, i) {
   if (!confirm('Xóa ảnh này?')) return;
   showStatus('Đang xóa...', 5000);
   try {
-    await gasPost({ action:'deletePhoto', id: photos[i].id });
+    await gasPost({ action: 'deletePhoto', id: photos[i].id });
     photos.splice(i, 1);
     if (current >= photos.length) current = Math.max(0, photos.length - 1);
     renderThumbs();
     renderSlide();
     showStatus('Đã xóa ảnh ✓');
-  } catch(e) {
+  } catch (e) {
     showStatus('Lỗi xóa ảnh 😢');
   }
 }
@@ -572,8 +626,8 @@ async function deletePhoto(e, i) {
 //  SLIDESHOW
 // ════════════════════════════════════════════════════
 function renderThumbs() {
-  document.getElementById('thumb-grid').innerHTML = photos.map((p,i) => `
-    <div class="thumb ${i===current?'active-thumb':''}" onclick="goToSlide(${i})">
+  document.getElementById('thumb-grid').innerHTML = photos.map((p, i) => `
+    <div class="thumb ${i === current ? 'active-thumb' : ''}" onclick="goToSlide(${i})">
       <img src="${p.src}" alt="" loading="lazy">
       <button class="thumb-del" onclick="deletePhoto(event,${i})">✕</button>
     </div>`).join('');
@@ -591,11 +645,11 @@ function goToSlide(i) {
 function renderSlide() {
   const vp = document.getElementById('viewport');
   vp.querySelectorAll('.slide-img').forEach(el => el.remove());
-  const noPhoto = document.getElementById('no-photo');
-  const controls = document.getElementById('slide-controls');
-  const counter = document.getElementById('counter');
-  const slideInfo = document.getElementById('slide-info');
-  const diaryForm = document.getElementById('diary-form-box');
+  const noPhoto      = document.getElementById('no-photo');
+  const controls     = document.getElementById('slide-controls');
+  const counter      = document.getElementById('counter');
+  const slideInfo    = document.getElementById('slide-info');
+  const diaryForm    = document.getElementById('diary-form-box');
   const diaryNoPhoto = document.getElementById('diary-no-photo');
 
   if (photos.length === 0) {
@@ -614,7 +668,7 @@ function renderSlide() {
   noPhoto.style.display = 'none';
   controls.style.display = photos.length > 1 ? 'flex' : 'none';
   counter.style.display = 'block';
-  counter.textContent = `${current+1} / ${photos.length}`;
+  counter.textContent = `${current + 1} / ${photos.length}`;
   slideInfo.style.display = 'flex';
   diaryForm.style.display = 'flex';
   diaryNoPhoto.style.display = 'none';
@@ -628,10 +682,10 @@ function renderSlide() {
   document.getElementById('si-date').textContent = photos[current].date || '';
   document.getElementById('meta-caption').value = photos[current].caption;
   document.getElementById('meta-date').value = photos[current].date;
-  document.getElementById('dots').innerHTML = photos.slice(0,10).map((_,i) =>
-    `<div class="dot ${i===current?'active':''}" onclick="goToSlide(${i})"></div>`).join('');
+  document.getElementById('dots').innerHTML = photos.slice(0, 10).map((_, i) =>
+    `<div class="dot ${i === current ? 'active' : ''}" onclick="goToSlide(${i})"></div>`).join('');
   document.getElementById('form-today').textContent =
-    new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+    new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   renderDiary();
 }
 
@@ -643,23 +697,23 @@ function toggleCaptionEdit(force) {
 async function saveMeta() {
   if (!photos.length) return;
   const caption = document.getElementById('meta-caption').value;
-  const date = document.getElementById('meta-date').value;
+  const date    = document.getElementById('meta-date').value;
   photos[current].caption = caption;
-  photos[current].date = date;
+  photos[current].date    = date;
   document.getElementById('si-caption').textContent = caption || '♡ Khoảnh khắc của chúng mình';
   document.getElementById('si-date').textContent = date || '';
   toggleCaptionEdit(false);
   showStatus('Đang lưu...', 5000);
   try {
-    await gasPost({ action:'updatePhoto', id:photos[current].id, caption, date });
+    await gasPost({ action: 'updatePhoto', id: photos[current].id, caption, date });
     showStatus('Đã lưu thông tin ảnh ✓');
-  } catch(e) { showStatus('Lỗi lưu 😢'); }
+  } catch (e) { showStatus('Lỗi lưu 😢'); }
 }
 
-function prevSlide() { if(!photos.length) return; goToSlide((current-1+photos.length)%photos.length); }
-function nextSlide() { if(!photos.length) return; goToSlide((current+1)%photos.length); }
-function resetTimer() { clearInterval(slideTimer); if(autoSlide&&photos.length>1) slideTimer=setInterval(nextSlide,5000); }
-function toggleAuto() { autoSlide=!autoSlide; document.getElementById('auto-toggle').classList.toggle('on',autoSlide); resetTimer(); }
+function prevSlide() { if (!photos.length) return; goToSlide((current - 1 + photos.length) % photos.length); }
+function nextSlide() { if (!photos.length) return; goToSlide((current + 1) % photos.length); }
+function resetTimer() { clearInterval(slideTimer); if (autoSlide && photos.length > 1) slideTimer = setInterval(nextSlide, 5000); }
+function toggleAuto() { autoSlide = !autoSlide; document.getElementById('auto-toggle').classList.toggle('on', autoSlide); resetTimer(); }
 
 // Drag & drop
 const uploadZone = document.getElementById('upload-zone');
@@ -668,10 +722,8 @@ uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag
 uploadZone.addEventListener('drop', e => {
   e.preventDefault();
   uploadZone.classList.remove('dragover');
-  const dt = e.dataTransfer;
-  if (dt.files.length) {
-    // Fake a change event
-    handleUpload({ target:{ files: dt.files, value:'' } });
+  if (e.dataTransfer.files.length) {
+    handleUpload({ target: { files: e.dataTransfer.files, value: '' } });
   }
 });
 
@@ -688,18 +740,18 @@ async function addDiaryEntry() {
     photoId: photos[current].id,
     author: author || 'Ẩn danh',
     text,
-    date: now.toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}),
-    time: now.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'})
+    date: now.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
+    time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
   };
   showStatus('Đang lưu nhật ký...', 5000);
   try {
-    await gasPost({ action:'addDiary', ...entry });
+    await gasPost({ action: 'addDiary', ...entry });
     photos[current].entries.push(entry);
     document.getElementById('diary-author').value = '';
     document.getElementById('diary-text').value = '';
     renderDiary();
     showStatus('Đã lưu vào nhật ký 📖');
-  } catch(e) { showStatus('Lỗi lưu nhật ký 😢'); }
+  } catch (e) { showStatus('Lỗi lưu nhật ký 😢'); }
 }
 
 function renderDiary() {
@@ -712,10 +764,10 @@ function renderDiary() {
   }
   const entries = photos[current].entries;
   countEl.textContent = entries.length + ' trang';
-  container.innerHTML = entries.map((e,i) => `
+  container.innerHTML = entries.map(e => `
     <div class="diary-entry">
       <div class="diary-dot"></div>
-      <div class="diary-entry-date">${e.date||''} ${e.time?'· '+e.time:''}</div>
+      <div class="diary-entry-date">${e.date || ''} ${e.time ? '· ' + e.time : ''}</div>
       <div class="diary-entry-author">— ${escHtml(e.author)}</div>
       <div class="diary-entry-text">${escHtml(e.text)}</div>
     </div>`).join('');
@@ -727,8 +779,8 @@ function renderDiary() {
 // ════════════════════════════════════════════════════
 function getYouTubeId(url) {
   if (!url) return null;
-  const patterns = [/youtu\.be\/([^?&]+)/,/youtube\.com\/watch\?.*v=([^&]+)/,/youtube\.com\/embed\/([^?&]+)/,/youtube\.com\/shorts\/([^?&]+)/];
-  for (const p of patterns) { const m=url.match(p); if(m) return m[1]; }
+  const patterns = [/youtu\.be\/([^?&]+)/, /youtube\.com\/watch\?.*v=([^&]+)/, /youtube\.com\/embed\/([^?&]+)/, /youtube\.com\/shorts\/([^?&]+)/];
+  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
   return null;
 }
 function isYouTube(url) { return !!getYouTubeId(url); }
@@ -736,12 +788,12 @@ function isYouTube(url) { return !!getYouTubeId(url); }
 function renderTracks() {
   document.getElementById('track-list').innerHTML = tracks.length === 0
     ? '<div style="font-size:.8rem;color:var(--muted);padding:.3rem .5rem;font-style:italic;">Chưa có bài nào. Thêm bài bên dưới!</div>'
-    : tracks.map((t,i) => `
-    <div class="track-item ${i===currentTrack?'playing':''}" onclick="playTrack(${i})">
-      <div class="track-num">${i===currentTrack&&isPlaying?'♪':i+1}</div>
+    : tracks.map((t, i) => `
+    <div class="track-item ${i === currentTrack ? 'playing' : ''}" onclick="playTrack(${i})">
+      <div class="track-num">${i === currentTrack && isPlaying ? '♪' : i + 1}</div>
       <div class="track-info">
         <div class="track-name">${escHtml(t.name)}</div>
-        <div class="track-name-artist">${escHtml(t.artist)} ${isYouTube(t.url)?'<span style="font-size:.65rem;background:#ff4444;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px;">YT</span>':''}</div>
+        <div class="track-name-artist">${escHtml(t.artist)} ${isYouTube(t.url) ? '<span style="font-size:.65rem;background:#ff4444;color:#fff;border-radius:3px;padding:1px 4px;margin-left:3px;">YT</span>' : ''}</div>
       </div>
       <button class="track-del-btn" onclick="deleteTrack(event,${i})">✕</button>
     </div>`).join('');
@@ -766,7 +818,7 @@ function playTrack(i) {
     document.getElementById('play-btn').textContent = '⏸';
     document.getElementById('music-bar').style.width = '0%';
     let fake = 0;
-    ytBarTimer = setInterval(() => { fake = Math.min(fake+0.15,98); document.getElementById('music-bar').style.width=fake+'%'; }, 1000);
+    ytBarTimer = setInterval(() => { fake = Math.min(fake + 0.15, 98); document.getElementById('music-bar').style.width = fake + '%'; }, 1000);
   } else {
     document.getElementById('yt-container').style.display = 'none';
     document.getElementById('yt-frame').src = '';
@@ -774,25 +826,32 @@ function playTrack(i) {
     audio.src = t.url;
     audio.volume = parseFloat(document.getElementById('vol-slider').value);
     audio.play()
-      .then(() => { isPlaying=true; document.getElementById('play-btn').textContent='⏸'; renderTracks(); })
+      .then(() => { isPlaying = true; document.getElementById('play-btn').textContent = '⏸'; renderTracks(); })
       .catch(() => showStatus('Không thể phát. Kiểm tra link nhé!'));
   }
 }
 
 function togglePlay() {
-  if (currentTrack<0 && tracks.length) { playTrack(0); return; }
-  const ytId = currentTrack>=0 ? getYouTubeId(tracks[currentTrack].url) : null;
+  if (currentTrack < 0 && tracks.length) { playTrack(0); return; }
+  const ytId = currentTrack >= 0 ? getYouTubeId(tracks[currentTrack].url) : null;
   if (ytId) {
-    if (isPlaying) { document.getElementById('yt-frame').src=''; document.getElementById('yt-container').style.display='none'; clearInterval(ytBarTimer); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
-    else { playTrack(currentTrack); }
+    if (isPlaying) {
+      document.getElementById('yt-frame').src = '';
+      document.getElementById('yt-container').style.display = 'none';
+      clearInterval(ytBarTimer); isPlaying = false;
+      document.getElementById('play-btn').textContent = '▶';
+    } else { playTrack(currentTrack); }
   } else {
-    if (audio.paused) { audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; }); }
-    else { audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
+    if (audio.paused) {
+      audio.play().then(() => { isPlaying = true; document.getElementById('play-btn').textContent = '⏸'; });
+    } else {
+      audio.pause(); isPlaying = false; document.getElementById('play-btn').textContent = '▶';
+    }
   }
 }
-function setVolume(v) { audio.volume=v; }
-audio.addEventListener('timeupdate', () => { if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
-audio.addEventListener('ended', () => { if(tracks.length) playTrack((currentTrack+1)%tracks.length); });
+function setVolume(v) { audio.volume = v; }
+audio.addEventListener('timeupdate', () => { if (audio.duration) document.getElementById('music-bar').style.width = (audio.currentTime / audio.duration * 100) + '%'; });
+audio.addEventListener('ended', () => { if (tracks.length) playTrack((currentTrack + 1) % tracks.length); });
 
 async function addTrack() {
   const name   = document.getElementById('track-name-in').value.trim();
@@ -801,84 +860,129 @@ async function addTrack() {
   if (!name) { showStatus('Nhập tên bài hát trước nhé!'); return; }
   showStatus('Đang lưu bài hát...', 5000);
   try {
-    await gasPost({ action:'addMusic', name, artist:artist||'Không rõ', url });
-    tracks.push({name, artist:artist||'Không rõ', url});
-    document.getElementById('track-name-in').value='';
-    document.getElementById('track-artist-in').value='';
-    document.getElementById('track-url-in').value='';
+    await gasPost({ action: 'addMusic', name, artist: artist || 'Không rõ', url });
+    tracks.push({ name, artist: artist || 'Không rõ', url });
+    document.getElementById('track-name-in').value = '';
+    document.getElementById('track-artist-in').value = '';
+    document.getElementById('track-url-in').value = '';
     renderTracks();
     showStatus('Đã thêm bài hát 🎶');
-  } catch(e) { showStatus('Lỗi lưu bài hát 😢'); }
+  } catch (e) { showStatus('Lỗi lưu bài hát 😢'); }
 }
 
 async function deleteTrack(e, i) {
   e.stopPropagation();
-  if(i===currentTrack){ audio.pause(); isPlaying=false; currentTrack=-1; document.getElementById('play-btn').textContent='▶'; }
+  if (i === currentTrack) { audio.pause(); isPlaying = false; currentTrack = -1; document.getElementById('play-btn').textContent = '▶'; }
   try {
-    await gasPost({ action:'deleteMusic', name:tracks[i].name, url:tracks[i].url });
-    tracks.splice(i,1);
-    if(currentTrack>i) currentTrack--;
+    await gasPost({ action: 'deleteMusic', name: tracks[i].name, url: tracks[i].url });
+    tracks.splice(i, 1);
+    if (currentTrack > i) currentTrack--;
     renderTracks();
     showStatus('Đã xóa bài hát ✓');
-  } catch(e) { showStatus('Lỗi xóa 😢'); }
+  } catch (e) { showStatus('Lỗi xóa 😢'); }
 }
 
 // ════════════════════════════════════════════════════
-//  LOVE COUNTER
+//  LOVE COUNTER — lưu lên Google Sheet để cả 2 cùng thấy
 // ════════════════════════════════════════════════════
-function saveLoveDate() {
+async function saveLoveDate() {
   const val = document.getElementById('lc-date-input').value;
   if (!val) { showStatus('Chọn ngày trước nhé! 📅'); return; }
-  localStorage.setItem('loveStartDate', val);
-  updateLoveCounter();
-  showStatus('Đã lưu ngày yêu 💕');
+  showStatus('Đang lưu ngày yêu...', 5000);
+  try {
+    // Lưu lên Sheet — cả hai người đều thấy
+    await gasPost({ action: 'saveSetting', key: 'loveDate', value: val });
+    // Cache local để load nhanh lần sau
+    localStorage.setItem('loveStartDate', val);
+    updateLoveCounter();
+    showStatus('Đã lưu ngày yêu 💕 — cả hai cùng thấy nhé!');
+  } catch (e) {
+    // Nếu GAS lỗi, vẫn lưu local để không mất dữ liệu
+    localStorage.setItem('loveStartDate', val);
+    updateLoveCounter();
+    showStatus('Lưu local tạm thời (GAS lỗi, người kia chưa thấy)');
+  }
 }
 
 function updateLoveCounter() {
   const saved = localStorage.getItem('loveStartDate');
   if (!saved) return;
   document.getElementById('lc-date-input').value = saved;
-  const start = new Date(saved); start.setHours(0,0,0,0);
-  const now = new Date(); now.setHours(0,0,0,0);
+  const start = new Date(saved); start.setHours(0, 0, 0, 0);
+  const now   = new Date();      now.setHours(0, 0, 0, 0);
   if (start > now) {
     document.getElementById('lc-days').innerHTML = '?<span>ngày</span>';
     document.getElementById('lc-sub').textContent = 'Ngày đó chưa đến... 🌸';
     document.getElementById('lc-units').style.display = 'none';
     return;
   }
-  const totalDays = Math.floor((now-start)/86400000);
-  let y=now.getFullYear()-start.getFullYear(), m=now.getMonth()-start.getMonth();
-  if(m<0){y--;m+=12;}
-  document.getElementById('lc-days').innerHTML = totalDays.toLocaleString('vi-VN')+'<span>ngày</span>';
-  let msg='';
-  if(totalDays===0) msg='Hôm nay là ngày đầu tiên 🥹';
-  else if(totalDays===100) msg='🎉 Tròn 100 ngày bên nhau!';
-  else if(totalDays===365) msg='🎂 Tròn 1 năm yêu nhau!';
-  else if(totalDays%365===0) msg=`🎉 Tròn ${totalDays/365} năm rồi!`;
-  else if(totalDays%100===0) msg=`✨ Tròn ${totalDays} ngày đặc biệt!`;
-  else { const next=totalDays<100?100:Math.ceil(totalDays/100)*100; msg=`Còn ${next-totalDays} ngày nữa là tròn ${next} ngày 🌷`; }
+  const totalDays = Math.floor((now - start) / 86400000);
+  let y = now.getFullYear() - start.getFullYear();
+  let m = now.getMonth() - start.getMonth();
+  if (m < 0) { y--; m += 12; }
+  document.getElementById('lc-days').innerHTML = totalDays.toLocaleString('vi-VN') + '<span>ngày</span>';
+  let msg = '';
+  if (totalDays === 0)             msg = 'Hôm nay là ngày đầu tiên 🥹';
+  else if (totalDays === 100)      msg = '🎉 Tròn 100 ngày bên nhau!';
+  else if (totalDays === 365)      msg = '🎂 Tròn 1 năm yêu nhau!';
+  else if (totalDays % 365 === 0)  msg = `🎉 Tròn ${totalDays / 365} năm rồi!`;
+  else if (totalDays % 100 === 0)  msg = `✨ Tròn ${totalDays} ngày đặc biệt!`;
+  else { const next = totalDays < 100 ? 100 : Math.ceil(totalDays / 100) * 100; msg = `Còn ${next - totalDays} ngày nữa là tròn ${next} ngày 🌷`; }
   document.getElementById('lc-sub').textContent = msg;
   document.getElementById('lc-years').textContent  = y;
   document.getElementById('lc-months').textContent = m;
-  document.getElementById('lc-weeks').textContent  = Math.floor(totalDays/7);
+  document.getElementById('lc-weeks').textContent  = Math.floor(totalDays / 7);
   document.getElementById('lc-units').style.display = 'flex';
-  document.getElementById('lc-hint').textContent = 'Kể từ '+start.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('lc-hint').textContent = 'Kể từ ' + start.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 // ════════════════════════════════════════════════════
 //  KEYBOARD
 // ════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if(e.key==='ArrowRight') nextSlide();
-  if(e.key==='ArrowLeft')  prevSlide();
+  if (e.key === 'ArrowRight') nextSlide();
+  if (e.key === 'ArrowLeft')  prevSlide();
 });
 
 // ════════════════════════════════════════════════════
 //  KHỞI ĐỘNG
 // ════════════════════════════════════════════════════
-updateLoveCounter();
+updateLoveCounter();   // Hiển thị ngay từ cache local (nhanh)
 setInterval(updateLoveCounter, 60000);
-loadAll();
+loadAll();             // Rồi load từ server (sync ngày yêu mới nhất)
 </script>
+
+<!--
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  CẬP NHẬT GOOGLE APPS SCRIPT (GAS)
+  Thêm 2 action mới vào file Code.gs của bạn:
+
+  case 'getSettings':
+    var sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
+    var data = sheet.getDataRange().getValues();
+    var result = {};
+    for (var i = 0; i < data.length; i++) {
+      result[data[i][0]] = data[i][1];
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  case 'saveSetting':
+    var sheet = ss.getSheetByName('Settings') || ss.insertSheet('Settings');
+    var data = sheet.getDataRange().getValues();
+    var found = false;
+    for (var i = 0; i < data.length; i++) {
+      if (data[i][0] === body.key) {
+        sheet.getRange(i+1, 2).setValue(body.value);
+        found = true; break;
+      }
+    }
+    if (!found) sheet.appendRow([body.key, body.value]);
+    return ContentService
+      .createTextOutput(JSON.stringify({ok:true}))
+      .setMimeType(ContentService.MimeType.JSON);
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+-->
 </body>
 </html>
