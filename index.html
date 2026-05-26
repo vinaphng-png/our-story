@@ -243,17 +243,13 @@
     <div class="love-counter">
       <div class="lc-label">Chúng mình đã bên nhau</div>
       <div class="lc-days" id="lc-days">—<span>ngày</span></div>
-      <div class="lc-sub" id="lc-sub">Nhập ngày yêu bên dưới 💕</div>
+      <div class="lc-sub" id="lc-sub"></div>
       <div class="lc-units" id="lc-units" style="display:none">
         <div class="lc-unit"><div class="lc-unit-num" id="lc-years">0</div><div class="lc-unit-label">năm</div></div>
         <div class="lc-unit"><div class="lc-unit-num" id="lc-months">0</div><div class="lc-unit-label">tháng</div></div>
         <div class="lc-unit"><div class="lc-unit-num" id="lc-weeks">0</div><div class="lc-unit-label">tuần</div></div>
       </div>
-      <div class="lc-date-row">
-        <input type="date" class="lc-date-input" id="lc-date-input">
-        <button class="lc-save-btn" onclick="saveLoveDate()">Lưu ♡</button>
-      </div>
-      <div class="lc-hint" id="lc-hint">Chọn ngày hai bạn bắt đầu yêu nhau</div>
+      <div class="lc-hint" id="lc-hint">Kể từ 05/12/2024 💕</div>
     </div>
 
     <!-- PHOTO MANAGER -->
@@ -321,12 +317,59 @@
 
 <script>
 // ════════════════════════════════════════════════════
-//  CẤU HÌNH — chỉ cần sửa 3 dòng này nếu đổi tài khoản
+//  CẤU HÌNH
 // ════════════════════════════════════════════════════
-const GAS_API      = 'https://script.google.com/macros/s/AKfycbzJzHgZ2RTOW14FFvdxrNk6lmG_cSxLsL7V0w_ZozlvXTAgDd3w4DaYV2tPKpamhv4/exec';
+const GITHUB_TOKEN  = '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';
+const GITHUB_REPO   = 'vinaphng-png/our-story';
+const GITHUB_BRANCH = 'main';
+const DATA_FILE     = 'data.json';  // file lưu toàn bộ data trong repo
+
 const CLD_CLOUD    = 'dhd3rh8kv';
-const CLD_PRESET   = 'Our Memory';   // tên preset giữ nguyên, có dấu cách cũng OK
+const CLD_PRESET   = 'Our Memory';
 const CLD_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLD_CLOUD}/image/upload`;
+
+// ── GitHub API helpers ──
+const GH_API = `https://api.github.com/repos/${GITHUB_REPO}/contents/${DATA_FILE}`;
+const GH_HEADERS = {
+  'Authorization': `token ${GITHUB_TOKEN}`,
+  'Accept': 'application/vnd.github.v3+json',
+  'Content-Type': 'application/json'
+};
+
+let _dataSha = '';  // SHA của file data.json hiện tại (cần để update)
+
+// Đọc toàn bộ data từ GitHub
+async function ghRead() {
+  const res = await fetch(GH_API + '?t=' + Date.now(), { headers: GH_HEADERS });
+  if (res.status === 404) {
+    // File chưa tồn tại, tạo mới
+    _dataSha = '';
+    return { photos: [], music: [], settings: {} };
+  }
+  const json = await res.json();
+  _dataSha = json.sha;
+  const decoded = JSON.parse(atob(json.content.replace(/
+/g, '')));
+  return decoded;
+}
+
+// Ghi toàn bộ data lên GitHub
+async function ghWrite(data) {
+  const body = {
+    message: 'update data',
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+    branch: GITHUB_BRANCH
+  };
+  if (_dataSha) body.sha = _dataSha;
+  const res = await fetch(GH_API, {
+    method: 'PUT',
+    headers: GH_HEADERS,
+    body: JSON.stringify(body)
+  });
+  const json = await res.json();
+  if (json.content) _dataSha = json.content.sha;
+  return json;
+}
 
 // ════════════════════════════════════════════════════
 //  STATE
@@ -357,41 +400,7 @@ function escHtml(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// ════════════════════════════════════════════════════
-//  GAS — dùng XMLHttpRequest để follow redirect (fix CORS GitHub Pages)
-// ════════════════════════════════════════════════════
-function gasGet(params) {
-  return new Promise((resolve, reject) => {
-    const url = GAS_API + '?' + new URLSearchParams(params);
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.timeout = 15000;
-    xhr.onload = () => {
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch (e) { reject(new Error('Parse error: ' + xhr.responseText)); }
-    };
-    xhr.onerror   = () => reject(new Error('Network error'));
-    xhr.ontimeout = () => reject(new Error('Timeout'));
-    xhr.send();
-  });
-}
 
-function gasPost(body) {
-  return new Promise((resolve, reject) => {
-    // Gửi qua GET+payload để tránh CORS preflight block trên GitHub Pages
-    const url = GAS_API + '?payload=' + encodeURIComponent(JSON.stringify(body));
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', url, true);
-    xhr.timeout = 15000;
-    xhr.onload = () => {
-      try { resolve(JSON.parse(xhr.responseText)); }
-      catch (e) { reject(new Error('Parse error: ' + xhr.responseText)); }
-    };
-    xhr.onerror   = () => reject(new Error('Network error'));
-    xhr.ontimeout = () => reject(new Error('Timeout'));
-    xhr.send();
-  });
-}
 
 // ════════════════════════════════════════════════════
 //  CLOUDINARY — upload trực tiếp từ trình duyệt
@@ -461,75 +470,40 @@ function updateQueueItem(el, pct, done, error) {
 }
 
 // ════════════════════════════════════════════════════
-//  LOAD DỮ LIỆU KHI MỞ TRANG
+//  LOAD DỮ LIỆU KHI MỞ TRANG — từ GitHub
 // ════════════════════════════════════════════════════
 async function loadAll() {
   setProgress(10);
   showStatus('Đang tải dữ liệu... ⏳', 20000);
   try {
-    // Load ảnh, nhạc, và ngày yêu cùng lúc
-    const [photoData, musicData, settingsData] = await Promise.all([
-      gasGet({ action: 'getPhotos' }),
-      gasGet({ action: 'getMusic' }),
-      gasGet({ action: 'getSettings' })   // ← load ngày yêu từ Sheet
-    ]);
-    setProgress(50);
+    const data = await ghRead();
+    setProgress(70);
 
-    // Xử lý ảnh
-    if (Array.isArray(photoData)) {
-      photos = photoData.map(p => {
-        let src = '';
-        if (p.cldPublicId) {
-          src = cldThumbUrl(p.cldPublicId);
-        } else if (p.driveId) {
-          src = `https://lh3.googleusercontent.com/d/${p.driveId}`;
-        } else {
-          src = p.src || '';
-        }
-        return {
-          id: p.id,
-          src,
-          cldPublicId: p.cldPublicId || '',
-          driveId: p.driveId || '',
-          caption: p.caption || '',
-          date: p.date || '',
-          entries: []
-        };
-      });
+    // Ảnh
+    photos = (data.photos || []).map(p => ({
+      ...p,
+      src: p.cldPublicId ? cldThumbUrl(p.cldPublicId) : (p.src || ''),
+      entries: p.entries || []
+    }));
 
-      // Load diary song song
-      await Promise.all(photos.map(async (ph) => {
-        try {
-          const diary = await gasGet({ action: 'getDiary', photoId: ph.id });
-          if (Array.isArray(diary)) ph.entries = diary;
-        } catch (e) {
-          console.warn('Không load được diary cho', ph.id);
-        }
-      }));
-    }
+    // Nhạc
+    tracks = data.music || [];
 
-    // Xử lý nhạc
-    if (Array.isArray(musicData)) {
-      tracks = musicData.map(t => ({ name: t.name, artist: t.artist, url: t.url }));
-    }
-
-    // ══ Xử lý ngày yêu — ưu tiên từ Sheet, fallback localStorage ══
-    if (settingsData && settingsData.loveDate) {
-      // Lưu vào localStorage để dùng offline/nhanh
-      localStorage.setItem('loveStartDate', settingsData.loveDate);
+    // Ngày yêu
+    if (data.settings && data.settings.loveDate) {
+      localStorage.setItem('loveStartDate', data.settings.loveDate);
     }
 
     setProgress(100);
     showStatus('Đã tải xong ✓');
     setTimeout(() => setProgress(0), 600);
-
   } catch (e) {
     console.error('loadAll error:', e);
-    showStatus('Lỗi kết nối 😢 — dùng dữ liệu local tạm thời');
+    showStatus('Lỗi tải dữ liệu 😢');
     setProgress(0);
   }
 
-  updateLoveCounter();   // Cập nhật love counter sau khi load xong
+  updateLoveCounter();
   renderSlide();
   renderThumbs();
   renderTracks();
@@ -564,22 +538,16 @@ async function handleUpload(e) {
         updateQueueItem(el, pct, false, false);
       });
 
-      // Bước 2: Lưu publicId vào Google Sheet qua GAS
+      // Bước 2: Thêm vào danh sách & lưu lên GitHub
       const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-      const saveResult = await gasPost({
-        action: 'uploadPhoto',
-        id,
-        cldPublicId: publicId,
-        caption: '',
-        date: ''
-      });
+      const newPhoto = { id, src: url, cldPublicId: publicId, caption: '', date: '', entries: [] };
+      photos.push(newPhoto);
 
-      if (saveResult && saveResult.error) {
-        throw new Error('GAS lỗi: ' + saveResult.error);
-      }
-
-      // Bước 3: Hiển thị ngay mà không cần reload
-      photos.push({ id, src: url, cldPublicId: publicId, driveId: '', caption: '', date: '', entries: [] });
+      // Lưu lên GitHub
+      const data = await ghRead();
+      data.photos = data.photos || [];
+      data.photos.push({ id, cldPublicId: publicId, caption: '', date: '', entries: [] });
+      await ghWrite(data);
       updateQueueItem(el, 100, true, false);
       renderThumbs();
       successCount++;
@@ -613,13 +581,18 @@ async function deletePhoto(e, i) {
   if (!confirm('Xóa ảnh này?')) return;
   showStatus('Đang xóa...', 5000);
   try {
-    await gasPost({ action: 'deletePhoto', id: photos[i].id });
+    const delId = photos[i].id;
     photos.splice(i, 1);
     if (current >= photos.length) current = Math.max(0, photos.length - 1);
     renderThumbs();
     renderSlide();
+    // Lưu lên GitHub
+    const data = await ghRead();
+    data.photos = (data.photos || []).filter(p => p.id !== delId);
+    data.diary  = (data.diary  || []).filter(d => d.photoId !== delId);
+    await ghWrite(data);
     showStatus('Đã xóa ảnh ✓');
-  } catch (e) {
+  } catch (err) {
     showStatus('Lỗi xóa ảnh 😢');
   }
 }
@@ -707,7 +680,10 @@ async function saveMeta() {
   toggleCaptionEdit(false);
   showStatus('Đang lưu...', 5000);
   try {
-    await gasPost({ action: 'updatePhoto', id: photos[current].id, caption, date });
+    const data = await ghRead();
+    const p = (data.photos || []).find(p => p.id === photos[current].id);
+    if (p) { p.caption = caption; p.date = date; }
+    await ghWrite(data);
     showStatus('Đã lưu thông tin ảnh ✓');
   } catch (e) { showStatus('Lỗi lưu 😢'); }
 }
@@ -747,7 +723,13 @@ async function addDiaryEntry() {
   };
   showStatus('Đang lưu nhật ký...', 5000);
   try {
-    await gasPost({ action: 'addDiary', ...entry });
+    const data = await ghRead();
+    data.diary = data.diary || [];
+    data.diary.push(entry);
+    // Cũng lưu vào entries của photo trong data.photos
+    const ph = (data.photos || []).find(p => p.id === photos[current].id);
+    if (ph) { ph.entries = ph.entries || []; ph.entries.push(entry); }
+    await ghWrite(data);
     photos[current].entries.push(entry);
     document.getElementById('diary-author').value = '';
     document.getElementById('diary-text').value = '';
@@ -862,8 +844,12 @@ async function addTrack() {
   if (!name) { showStatus('Nhập tên bài hát trước nhé!'); return; }
   showStatus('Đang lưu bài hát...', 5000);
   try {
-    await gasPost({ action: 'addMusic', name, artist: artist || 'Không rõ', url });
-    tracks.push({ name, artist: artist || 'Không rõ', url });
+    const newTrack = { name, artist: artist || 'Không rõ', url };
+    const data = await ghRead();
+    data.music = data.music || [];
+    data.music.push(newTrack);
+    await ghWrite(data);
+    tracks.push(newTrack);
     document.getElementById('track-name-in').value = '';
     document.getElementById('track-artist-in').value = '';
     document.getElementById('track-url-in').value = '';
@@ -876,10 +862,13 @@ async function deleteTrack(e, i) {
   e.stopPropagation();
   if (i === currentTrack) { audio.pause(); isPlaying = false; currentTrack = -1; document.getElementById('play-btn').textContent = '▶'; }
   try {
-    await gasPost({ action: 'deleteMusic', name: tracks[i].name, url: tracks[i].url });
+    const delName = tracks[i].name; const delUrl = tracks[i].url;
     tracks.splice(i, 1);
     if (currentTrack > i) currentTrack--;
     renderTracks();
+    const data = await ghRead();
+    data.music = (data.music||[]).filter(t=>!(t.name===delName&&t.url===delUrl));
+    await ghWrite(data);
     showStatus('Đã xóa bài hát ✓');
   } catch (e) { showStatus('Lỗi xóa 😢'); }
 }
@@ -892,24 +881,22 @@ async function saveLoveDate() {
   if (!val) { showStatus('Chọn ngày trước nhé! 📅'); return; }
   showStatus('Đang lưu ngày yêu...', 5000);
   try {
-    // Lưu lên Sheet — cả hai người đều thấy
-    await gasPost({ action: 'saveSetting', key: 'loveDate', value: val });
-    // Cache local để load nhanh lần sau
+    const data = await ghRead();
+    data.settings = data.settings || {};
+    data.settings.loveDate = val;
+    await ghWrite(data);
     localStorage.setItem('loveStartDate', val);
     updateLoveCounter();
     showStatus('Đã lưu ngày yêu 💕 — cả hai cùng thấy nhé!');
   } catch (e) {
-    // Nếu GAS lỗi, vẫn lưu local để không mất dữ liệu
     localStorage.setItem('loveStartDate', val);
     updateLoveCounter();
-    showStatus('Lưu local tạm thời (GAS lỗi, người kia chưa thấy)');
+    showStatus('Lưu local tạm thời 😢');
   }
 }
 
 function updateLoveCounter() {
-  const saved = localStorage.getItem('loveStartDate');
-  if (!saved) return;
-  document.getElementById('lc-date-input').value = saved;
+  const saved = '2024-12-05';
   const start = new Date(saved); start.setHours(0, 0, 0, 0);
   const now   = new Date();      now.setHours(0, 0, 0, 0);
   if (start > now) {
