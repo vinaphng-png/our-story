@@ -323,7 +323,7 @@
 // ════════════════════════════════════════════════════
 //  CẤU HÌNH — chỉ cần sửa 3 dòng này nếu đổi tài khoản
 // ════════════════════════════════════════════════════
-const GAS_API      = 'https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec';
+const GAS_API      = 'https://script.google.com/macros/s/AKfycbzJzHgZ2RTOW14FFvdxrNk6lmG_cSxLsL7V0w_ZozlvXTAgDd3w4DaYV2tPKpamhv4/exec';
 const CLD_CLOUD    = 'dhd3rh8kv';
 const CLD_PRESET   = 'Our Memory';   // tên preset giữ nguyên, có dấu cách cũng OK
 const CLD_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLD_CLOUD}/image/upload`;
@@ -378,8 +378,10 @@ function gasGet(params) {
 
 function gasPost(body) {
   return new Promise((resolve, reject) => {
+    // Gửi qua GET+payload để tránh CORS preflight block trên GitHub Pages
+    const url = GAS_API + '?payload=' + encodeURIComponent(JSON.stringify(body));
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', GAS_API, true);
+    xhr.open('GET', url, true);
     xhr.timeout = 15000;
     xhr.onload = () => {
       try { resolve(JSON.parse(xhr.responseText)); }
@@ -387,7 +389,7 @@ function gasPost(body) {
     };
     xhr.onerror   = () => reject(new Error('Network error'));
     xhr.ontimeout = () => reject(new Error('Timeout'));
-    xhr.send(JSON.stringify(body));
+    xhr.send();
   });
 }
 
