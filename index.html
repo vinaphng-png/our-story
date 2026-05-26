@@ -28,9 +28,9 @@
   /* SLIDESHOW */
   .slideshow-card{background:var(--white);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;}
   .slide-viewport{position:relative;width:100%;aspect-ratio:4/3;background:var(--warm);overflow:hidden;}
-  .slide-img{width:100%;height:100%;object-fit:cover;display:none;animation:fadeIn .6s ease;}
+  .slide-img{width:100%;height:100%;object-fit:cover;display:none;animation:fadeIn .5s ease;}
   .slide-img.active{display:block;}
-  @keyframes fadeIn{from{opacity:0;transform:scale(1.03);}to{opacity:1;transform:scale(1);}}
+  @keyframes fadeIn{from{opacity:0;transform:scale(1.02);}to{opacity:1;transform:scale(1);}}
   .no-photo{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;color:var(--muted);}
   .no-photo svg{opacity:.3;}
   .no-photo p{font-size:.88rem;}
@@ -67,9 +67,6 @@
   .diary-entry-date{font-size:.72rem;color:var(--gold);font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
   .diary-entry-author{font-size:.75rem;color:var(--muted);margin-bottom:5px;}
   .diary-entry-text{font-family:'Caveat',cursive;font-size:1.05rem;color:var(--ink);line-height:1.55;}
-  .diary-del{position:absolute;top:.8rem;right:.5rem;background:none;border:none;color:#ddb8be;font-size:.8rem;cursor:pointer;opacity:0;transition:.15s;padding:2px 5px;border-radius:4px;}
-  .diary-entry:hover .diary-del{opacity:1;}
-  .diary-del:hover{color:var(--rose);}
   .no-entries{font-size:.85rem;color:var(--muted);font-style:italic;padding:.5rem 0 .5rem .5rem;}
   .diary-form{background:var(--paper);border-radius:14px;border:1px solid #f0ddd8;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;}
   .diary-form-header{font-family:'Caveat',cursive;font-size:.95rem;color:var(--muted);border-bottom:1px dashed #e8d5d9;padding-bottom:.4rem;margin-bottom:.2rem;display:flex;gap:.6rem;align-items:center;}
@@ -89,9 +86,20 @@
   .panel-body{padding:.9rem 1.2rem;}
 
   /* UPLOAD */
-  .upload-zone{border:1.5px dashed #e8c5cc;border-radius:10px;padding:.8rem;text-align:center;cursor:pointer;transition:.2s;color:var(--muted);font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .upload-zone{border:1.5px dashed #e8c5cc;border-radius:10px;padding:.8rem;text-align:center;cursor:pointer;transition:.2s;color:var(--muted);font-size:.82rem;display:flex;align-items:center;justify-content:center;gap:8px;position:relative;}
   .upload-zone:hover{border-color:var(--rose);background:var(--rose-light);}
+  .upload-zone.dragover{border-color:var(--rose);background:var(--rose-light);transform:scale(1.01);}
   #file-input{display:none;}
+
+  /* UPLOAD PROGRESS */
+  .upload-queue{display:flex;flex-direction:column;gap:5px;margin-top:.6rem;display:none;}
+  .upload-queue.visible{display:flex;}
+  .upload-item{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--muted);}
+  .upload-item-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .upload-item-bar-wrap{width:60px;height:3px;background:var(--rose-light);border-radius:4px;flex-shrink:0;}
+  .upload-item-bar{height:100%;background:var(--rose);border-radius:4px;width:0%;transition:width .3s;}
+  .upload-item-status{font-size:.7rem;flex-shrink:0;width:14px;text-align:center;}
+
   .thumb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:.6rem;}
   .thumb{aspect-ratio:1;border-radius:7px;overflow:hidden;cursor:pointer;position:relative;border:2px solid transparent;transition:.15s;}
   .thumb.active-thumb{border-color:var(--rose);}
@@ -150,9 +158,9 @@
   .lc-save-btn:hover{background:var(--rose-dark);}
   .lc-hint{font-size:.72rem;color:var(--muted);margin-top:.5rem;font-style:italic;}
 
-  /* LOADING OVERLAY */
+  /* STATUS */
   .loading-bar{position:fixed;top:0;left:0;height:3px;background:var(--rose);width:0%;transition:width .3s;z-index:9999;}
-  .status-badge{position:fixed;bottom:20px;right:20px;background:#2d2020;color:#fff;padding:8px 16px;border-radius:20px;font-size:.82rem;opacity:0;transition:opacity .3s;z-index:9999;max-width:280px;font-family:'DM Sans',sans-serif;}
+  .status-badge{position:fixed;bottom:20px;right:20px;background:#2d2020;color:#fff;padding:8px 16px;border-radius:20px;font-size:.82rem;opacity:0;transition:opacity .3s;z-index:9999;max-width:300px;font-family:'DM Sans',sans-serif;}
 
   ::-webkit-scrollbar{width:3px;}
   ::-webkit-scrollbar-track{background:transparent;}
@@ -256,15 +264,19 @@
         <span style="font-size:.75rem;color:var(--muted)" id="photo-count-label">0 ảnh</span>
       </div>
       <div class="panel-body">
-        <div class="upload-zone" onclick="document.getElementById('file-input').click()">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="17 8 12 3 7 8"/>
             <line x1="12" y1="3" x2="12" y2="15"/>
           </svg>
-          Tải ảnh lên (tự động lưu)
+          Tải nhiều ảnh cùng lúc
         </div>
         <input type="file" id="file-input" multiple accept="image/*" onchange="handleUpload(event)">
+
+        <!-- Upload queue hiển thị tiến độ từng ảnh -->
+        <div class="upload-queue" id="upload-queue"></div>
+
         <div class="thumb-grid" id="thumb-grid"></div>
       </div>
     </div>
@@ -292,7 +304,6 @@
           <input type="range" class="volume" id="vol-slider" min="0" max="1" step="0.05" value="0.7" oninput="setVolume(this.value)">
           <span>🔊</span>
         </div>
-        <!-- YouTube player ẩn -->
         <div id="yt-container" style="display:none;margin-bottom:.5rem;border-radius:10px;overflow:hidden;">
           <iframe id="yt-frame" width="100%" height="80" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="display:block;border-radius:10px;"></iframe>
         </div>
@@ -313,9 +324,19 @@
 <audio id="audio-player" style="display:none"></audio>
 
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec';
+// ════════════════════════════════════════════════════
+//  CẤU HÌNH
+// ════════════════════════════════════════════════════
+const GAS_API = 'https://script.google.com/macros/s/AKfycbz8xE9gjl2ZiGzvabcH5P7B7OFMi5M-Wcj8W1Al2A0KuYmUU33AwkWutqPZxKB1ZtRg/exec';
 
-// ── STATE ──
+// ── Cloudinary – upload thẳng từ browser, không qua GAS ──
+const CLD_CLOUD  = 'dhd3rh8kv';
+const CLD_PRESET = 'Our Memory';   // upload preset Unsigned
+const CLD_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLD_CLOUD}/image/upload`;
+
+// ════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════
 let photos = [];
 let current = 0;
 let autoSlide = true;
@@ -326,7 +347,9 @@ let currentTrack = -1;
 let isPlaying = false;
 const audio = document.getElementById('audio-player');
 
-// ── UI HELPERS ──
+// ════════════════════════════════════════════════════
+//  UI HELPERS
+// ════════════════════════════════════════════════════
 function setProgress(pct) { document.getElementById('loading-bar').style.width = pct + '%'; }
 function showStatus(msg, dur=3000) {
   const b = document.getElementById('status-badge');
@@ -334,85 +357,138 @@ function showStatus(msg, dur=3000) {
   clearTimeout(b._t);
   b._t = setTimeout(() => { b.style.opacity = '0'; }, dur);
 }
-function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// ── API CALLS ──
-async function apiGet(params) {
-  const url = API + '?' + new URLSearchParams(params);
+// ════════════════════════════════════════════════════
+//  GAS (Google Apps Script) – chỉ dùng cho metadata & diary
+// ════════════════════════════════════════════════════
+async function gasGet(params) {
+  const url = GAS_API + '?' + new URLSearchParams(params);
   const res = await fetch(url);
   return res.json();
 }
-async function apiPost(body) {
-  const res = await fetch(API, {
-    method: 'POST',
-    body: JSON.stringify(body)
-  });
+async function gasPost(body) {
+  const res = await fetch(GAS_API, { method:'POST', body: JSON.stringify(body) });
   return res.json();
 }
 
-// ── COMPRESS IMAGE ──
-function compressImage(file, maxW=800, quality=0.7) {
-  return new Promise(resolve => {
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let w = img.width, h = img.height;
-        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = ev.target.result;
+// ════════════════════════════════════════════════════
+//  CLOUDINARY UPLOAD – trực tiếp từ trình duyệt
+//  Không cần base64 → file gốc → nhanh & chất lượng cao
+// ════════════════════════════════════════════════════
+
+/**
+ * Upload 1 file lên Cloudinary, có progress callback.
+ * Trả về { publicId, url } khi thành công.
+ */
+function uploadToCloudinary(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLD_PRESET);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', CLD_UPLOAD_URL);
+
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 90));
     };
-    reader.readAsDataURL(file);
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        const data = JSON.parse(xhr.responseText);
+        // URL tự động CDN, ai cũng truy cập được, không cần đăng nhập
+        resolve({ publicId: data.public_id, url: data.secure_url });
+      } else {
+        reject(new Error('Cloudinary error ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(fd);
   });
 }
 
-// ── LOAD ALL DATA ON START ──
+/**
+ * Tạo URL thumbnail từ publicId Cloudinary.
+ * w=800, q=auto, f=auto → Cloudinary tự chọn format tốt nhất (WebP/AVIF).
+ */
+function cldThumbUrl(publicId, w=800) {
+  return `https://res.cloudinary.com/${CLD_CLOUD}/image/upload/w_${w},q_auto,f_auto/${publicId}`;
+}
+
+// ════════════════════════════════════════════════════
+//  UPLOAD QUEUE UI
+// ════════════════════════════════════════════════════
+function createQueueItem(name) {
+  const el = document.createElement('div');
+  el.className = 'upload-item';
+  el.innerHTML = `
+    <span class="upload-item-status">⏳</span>
+    <span class="upload-item-name" title="${escHtml(name)}">${escHtml(name)}</span>
+    <div class="upload-item-bar-wrap"><div class="upload-item-bar" id="bar-${CSS.escape(name)}"></div></div>`;
+  return el;
+}
+function updateQueueItem(el, pct, done, error) {
+  const bar = el.querySelector('.upload-item-bar');
+  const ico = el.querySelector('.upload-item-status');
+  if (bar) bar.style.width = pct + '%';
+  if (done) { ico.textContent = '✓'; bar.style.background = '#6abe8a'; }
+  if (error) { ico.textContent = '✕'; bar.style.background = '#e07070'; }
+}
+
+// ════════════════════════════════════════════════════
+//  LOAD TẤT CẢ DỮ LIỆU KHI KHỞI ĐỘNG
+// ════════════════════════════════════════════════════
 async function loadAll() {
   setProgress(10);
-  showStatus('Đang tải dữ liệu... ⏳', 10000);
+  showStatus('Đang tải dữ liệu... ⏳', 15000);
   try {
     const [photoData, musicData] = await Promise.all([
-      apiGet({action:'getPhotos'}),
-      apiGet({action:'getMusic'})
+      gasGet({ action:'getPhotos' }),
+      gasGet({ action:'getMusic' })
     ]);
-    setProgress(60);
+    setProgress(50);
 
     if (Array.isArray(photoData)) {
-      photos = photoData.map(p => ({
-        id: p.id,
-        // Dùng Google Drive thumbnail URL — hiển thị được mọi máy
-        src: p.driveId ? `https://lh3.googleusercontent.com/d/${p.driveId}=w800` : (p.src || ''),
-        driveId: p.driveId || '',
-        caption: p.caption || '',
-        date: p.date || '',
-        entries: []
-      }));
-      for (let i = 0; i < photos.length; i++) {
+      // Mỗi photo có thể lưu theo 2 dạng:
+      //   - cldPublicId : dùng Cloudinary (mới)
+      //   - driveId     : dùng Google Drive (cũ) – vẫn tương thích
+      photos = photoData.map(p => {
+        let src = '';
+        if (p.cldPublicId) {
+          src = cldThumbUrl(p.cldPublicId);
+        } else if (p.driveId) {
+          // Cố gắng dùng URL public Drive (cần file đã share)
+          src = `https://lh3.googleusercontent.com/d/${p.driveId}`;
+        } else {
+          src = p.src || '';
+        }
+        return { id: p.id, src, cldPublicId: p.cldPublicId||'', driveId: p.driveId||'', caption: p.caption||'', date: p.date||'', entries:[] };
+      });
+
+      // Load diary song song cho tất cả ảnh
+      await Promise.all(photos.map(async (ph) => {
         try {
-          const diary = await apiGet({action:'getDiary', photoId: photos[i].id});
-          if (Array.isArray(diary)) photos[i].entries = diary;
+          const diary = await gasGet({ action:'getDiary', photoId: ph.id });
+          if (Array.isArray(diary)) ph.entries = diary;
         } catch(e) {}
-      }
+      }));
     }
     setProgress(85);
 
     if (Array.isArray(musicData)) {
-      tracks = musicData.map(t => ({name:t.name, artist:t.artist, url:t.url}));
+      tracks = musicData.map(t => ({ name:t.name, artist:t.artist, url:t.url }));
     }
     setProgress(100);
     showStatus('Đã tải xong ✓');
     setTimeout(() => setProgress(0), 600);
 
-    // Preload tất cả ảnh trong nền sau 1s
-    photos.slice(0, 3).forEach(p => preloadImage(p.src));
-setTimeout(() => photos.slice(3).forEach(p => preloadImage(p.src)), 2000);
-
   } catch(e) {
-    showStatus('Lỗi kết nối Google Sheet 😢');
+    showStatus('Lỗi kết nối 😢');
     setProgress(0);
   }
 
@@ -422,45 +498,66 @@ setTimeout(() => photos.slice(3).forEach(p => preloadImage(p.src)), 2000);
   resetTimer();
 }
 
-// ── PHOTOS ──
+// ════════════════════════════════════════════════════
+//  UPLOAD NHIỀU ẢNH SONG SONG
+// ════════════════════════════════════════════════════
 async function handleUpload(e) {
   const files = Array.from(e.target.files);
   e.target.value = '';
-  for (const f of files) {
-    showStatus(`Đang upload "${f.name}" lên Drive... ⏳`, 20000);
-    setProgress(20);
+  if (!files.length) return;
+
+  const queue = document.getElementById('upload-queue');
+  queue.innerHTML = '';
+  queue.classList.add('visible');
+
+  // Tạo UI hàng chờ cho tất cả ảnh ngay lập tức
+  const items = files.map(f => {
+    const el = createQueueItem(f.name);
+    queue.appendChild(el);
+    return { file: f, el };
+  });
+
+  // Upload TẤT CẢ song song (Promise.all)
+  await Promise.all(items.map(async ({ file, el }) => {
     try {
-      const base64 = await compressImage(f, 1200, 0.82);
-      setProgress(50);
+      const { publicId, url } = await uploadToCloudinary(file, pct => {
+        updateQueueItem(el, pct, false, false);
+      });
+
+      // Lưu metadata (publicId) vào Google Sheet qua GAS
       const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-      const result = await apiPost({action:'uploadPhoto', id, base64, caption:'', date:''});
-      setProgress(90);
-      if (result.ok && result.driveId) {
-        const src = `https://lh3.googleusercontent.com/d/${result.driveId}=w800`;
-        photos.push({id, src, driveId: result.driveId, caption:'', date:'', entries:[]});
-        setProgress(100);
-        showStatus('Đã lưu ảnh lên Drive ✓');
-        setTimeout(() => setProgress(0), 500);
-        renderThumbs();
-        goToSlide(photos.length - 1);
-      } else {
-        showStatus('Lỗi lưu ảnh — thử lại nhé 😢');
-        setProgress(0);
-      }
+      await gasPost({ action:'uploadPhoto', id, cldPublicId: publicId, caption:'', date:'' });
+
+      // Thêm vào danh sách ảnh ngay, không chờ reload
+      photos.push({ id, src: url, cldPublicId: publicId, driveId:'', caption:'', date:'', entries:[] });
+      updateQueueItem(el, 100, true, false);
+      renderThumbs();
+
     } catch(err) {
       console.error(err);
-      showStatus('Lỗi upload ảnh 😢');
-      setProgress(0);
+      updateQueueItem(el, 0, false, true);
     }
-  }
+  }));
+
+  // Ẩn queue sau 3 giây
+  setTimeout(() => {
+    queue.classList.remove('visible');
+    queue.innerHTML = '';
+  }, 3000);
+
+  if (photos.length > 0) goToSlide(photos.length - 1);
+  showStatus(`Đã tải lên ${files.length} ảnh ✓`);
 }
 
+// ════════════════════════════════════════════════════
+//  XÓA ẢNH
+// ════════════════════════════════════════════════════
 async function deletePhoto(e, i) {
   e.stopPropagation();
   if (!confirm('Xóa ảnh này?')) return;
   showStatus('Đang xóa...', 5000);
   try {
-    await apiPost({action:'deletePhoto', id: photos[i].id});
+    await gasPost({ action:'deletePhoto', id: photos[i].id });
     photos.splice(i, 1);
     if (current >= photos.length) current = Math.max(0, photos.length - 1);
     renderThumbs();
@@ -471,24 +568,9 @@ async function deletePhoto(e, i) {
   }
 }
 
-// ── IMAGE CACHE & PRELOAD ──
-const imgCache = {}; // url -> HTMLImageElement (loaded)
-
-function preloadImage(url) {
-  if (!url || imgCache[url]) return;
-  const img = new Image();
-  img.src = url;
-  imgCache[url] = img;
-}
-
-function preloadNeighbors() {
-  if (photos.length <= 1) return;
-  const next = (current + 1) % photos.length;
-  const prev = (current - 1 + photos.length) % photos.length;
-  preloadImage(photos[next].src);
-  preloadImage(photos[prev].src);
-}
-
+// ════════════════════════════════════════════════════
+//  SLIDESHOW
+// ════════════════════════════════════════════════════
 function renderThumbs() {
   document.getElementById('thumb-grid').innerHTML = photos.map((p,i) => `
     <div class="thumb ${i===current?'active-thumb':''}" onclick="goToSlide(${i})">
@@ -528,6 +610,7 @@ function renderSlide() {
     renderDiary();
     return;
   }
+
   noPhoto.style.display = 'none';
   controls.style.display = photos.length > 1 ? 'flex' : 'none';
   counter.style.display = 'block';
@@ -536,33 +619,10 @@ function renderSlide() {
   diaryForm.style.display = 'flex';
   diaryNoPhoto.style.display = 'none';
 
-  const url = photos[current].src;
   const img = document.createElement('img');
-  img.className = 'slide-img';
-  img.style.filter = 'blur(8px)';
-  img.style.transform = 'scale(1.04)';
-  img.style.transition = 'filter .5s ease, transform .5s ease';
-
-  // Nếu đã cache → hiện ngay, không blur
-  if (imgCache[url] && imgCache[url].complete) {
-    img.src = url;
-    img.style.filter = 'none';
-    img.style.transform = 'scale(1)';
-    img.classList.add('active');
-  } else {
-    img.src = url;
-    img.classList.add('active');
-    img.onload = () => {
-      img.style.filter = 'none';
-      img.style.transform = 'scale(1)';
-      imgCache[url] = img;
-    };
-  }
-
+  img.className = 'slide-img active';
+  img.src = photos[current].src;
   vp.insertBefore(img, document.getElementById('slide-controls'));
-
-  // preload ảnh lân cận trong nền
-  setTimeout(preloadNeighbors, 300);
 
   document.getElementById('si-caption').textContent = photos[current].caption || '♡ Khoảnh khắc của chúng mình';
   document.getElementById('si-date').textContent = photos[current].date || '';
@@ -570,7 +630,8 @@ function renderSlide() {
   document.getElementById('meta-date').value = photos[current].date;
   document.getElementById('dots').innerHTML = photos.slice(0,10).map((_,i) =>
     `<div class="dot ${i===current?'active':''}" onclick="goToSlide(${i})"></div>`).join('');
-  document.getElementById('form-today').textContent = new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('form-today').textContent =
+    new Date().toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
   renderDiary();
 }
 
@@ -590,21 +651,37 @@ async function saveMeta() {
   toggleCaptionEdit(false);
   showStatus('Đang lưu...', 5000);
   try {
-    await apiPost({action:'updatePhoto', id:photos[current].id, caption, date});
+    await gasPost({ action:'updatePhoto', id:photos[current].id, caption, date });
     showStatus('Đã lưu thông tin ảnh ✓');
   } catch(e) { showStatus('Lỗi lưu 😢'); }
 }
 
 function prevSlide() { if(!photos.length) return; goToSlide((current-1+photos.length)%photos.length); }
 function nextSlide() { if(!photos.length) return; goToSlide((current+1)%photos.length); }
-function resetTimer() { clearInterval(slideTimer); if(autoSlide && photos.length>1) slideTimer=setInterval(nextSlide,5000); }
+function resetTimer() { clearInterval(slideTimer); if(autoSlide&&photos.length>1) slideTimer=setInterval(nextSlide,5000); }
 function toggleAuto() { autoSlide=!autoSlide; document.getElementById('auto-toggle').classList.toggle('on',autoSlide); resetTimer(); }
 
-// ── DIARY ──
+// Drag & drop
+const uploadZone = document.getElementById('upload-zone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const dt = e.dataTransfer;
+  if (dt.files.length) {
+    // Fake a change event
+    handleUpload({ target:{ files: dt.files, value:'' } });
+  }
+});
+
+// ════════════════════════════════════════════════════
+//  DIARY
+// ════════════════════════════════════════════════════
 async function addDiaryEntry() {
   if (!photos.length) return;
   const author = document.getElementById('diary-author').value.trim();
-  const text = document.getElementById('diary-text').value.trim();
+  const text   = document.getElementById('diary-text').value.trim();
   if (!text) { showStatus('Hãy viết điều gì đó trước nhé 🌷'); return; }
   const now = new Date();
   const entry = {
@@ -616,7 +693,7 @@ async function addDiaryEntry() {
   };
   showStatus('Đang lưu nhật ký...', 5000);
   try {
-    await apiPost({action:'addDiary', ...entry});
+    await gasPost({ action:'addDiary', ...entry });
     photos[current].entries.push(entry);
     document.getElementById('diary-author').value = '';
     document.getElementById('diary-text').value = '';
@@ -627,7 +704,7 @@ async function addDiaryEntry() {
 
 function renderDiary() {
   const container = document.getElementById('diary-entries');
-  const countEl = document.getElementById('diary-count');
+  const countEl   = document.getElementById('diary-count');
   if (!photos.length || !photos[current].entries || photos[current].entries.length === 0) {
     container.innerHTML = '<span class="no-entries">Chưa có dòng nào. Hãy viết điều gì đó... 🌷</span>';
     countEl.textContent = '0 trang';
@@ -638,29 +715,22 @@ function renderDiary() {
   container.innerHTML = entries.map((e,i) => `
     <div class="diary-entry">
       <div class="diary-dot"></div>
-      <div class="diary-entry-date">${e.date || ''} ${e.time ? '· '+e.time : ''}</div>
+      <div class="diary-entry-date">${e.date||''} ${e.time?'· '+e.time:''}</div>
       <div class="diary-entry-author">— ${escHtml(e.author)}</div>
       <div class="diary-entry-text">${escHtml(e.text)}</div>
     </div>`).join('');
   container.scrollTop = container.scrollHeight;
 }
 
-// ── MUSIC ──
+// ════════════════════════════════════════════════════
+//  MUSIC
+// ════════════════════════════════════════════════════
 function getYouTubeId(url) {
   if (!url) return null;
-  const patterns = [
-    /youtu\.be\/([^?&]+)/,
-    /youtube\.com\/watch\?.*v=([^&]+)/,
-    /youtube\.com\/embed\/([^?&]+)/,
-    /youtube\.com\/shorts\/([^?&]+)/
-  ];
-  for (const p of patterns) {
-    const m = url.match(p);
-    if (m) return m[1];
-  }
+  const patterns = [/youtu\.be\/([^?&]+)/,/youtube\.com\/watch\?.*v=([^&]+)/,/youtube\.com\/embed\/([^?&]+)/,/youtube\.com\/shorts\/([^?&]+)/];
+  for (const p of patterns) { const m=url.match(p); if(m) return m[1]; }
   return null;
 }
-
 function isYouTube(url) { return !!getYouTubeId(url); }
 
 function renderTracks() {
@@ -678,38 +748,26 @@ function renderTracks() {
 }
 
 let ytBarTimer = null;
-
 function playTrack(i) {
   currentTrack = i;
   const t = tracks[i];
   document.getElementById('now-title').textContent = t.name;
   document.getElementById('now-artist').textContent = t.artist;
   renderTracks();
-
   if (!t.url) { showStatus('Bài này chưa có link 🎵'); return; }
-
   const ytId = getYouTubeId(t.url);
   if (ytId) {
-    // YouTube mode
     audio.pause(); audio.src = '';
     clearInterval(ytBarTimer);
     const frame = document.getElementById('yt-frame');
-    const container = document.getElementById('yt-container');
-    // autoplay=1, mute cần 0 để có tiếng, nhưng YT yêu cầu tương tác trước
     frame.src = `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1`;
-    container.style.display = 'block';
-    document.getElementById('volume-row') && (document.getElementById('vol-slider').style.opacity='0.4');
+    document.getElementById('yt-container').style.display = 'block';
     isPlaying = true;
     document.getElementById('play-btn').textContent = '⏸';
-    // giả lập progress bar
     document.getElementById('music-bar').style.width = '0%';
     let fake = 0;
-    ytBarTimer = setInterval(() => {
-      fake = Math.min(fake + 0.15, 98);
-      document.getElementById('music-bar').style.width = fake + '%';
-    }, 1000);
+    ytBarTimer = setInterval(() => { fake = Math.min(fake+0.15,98); document.getElementById('music-bar').style.width=fake+'%'; }, 1000);
   } else {
-    // MP3 mode
     document.getElementById('yt-container').style.display = 'none';
     document.getElementById('yt-frame').src = '';
     clearInterval(ytBarTimer);
@@ -722,51 +780,32 @@ function playTrack(i) {
 }
 
 function togglePlay() {
-  if (currentTrack < 0 && tracks.length) { playTrack(0); return; }
-  const ytId = currentTrack >= 0 ? getYouTubeId(tracks[currentTrack].url) : null;
+  if (currentTrack<0 && tracks.length) { playTrack(0); return; }
+  const ytId = currentTrack>=0 ? getYouTubeId(tracks[currentTrack].url) : null;
   if (ytId) {
-    // với YouTube chỉ có thể reload hoặc dừng bằng cách xóa src
-    if (isPlaying) {
-      document.getElementById('yt-frame').src = '';
-      document.getElementById('yt-container').style.display = 'none';
-      clearInterval(ytBarTimer);
-      isPlaying = false;
-      document.getElementById('play-btn').textContent = '▶';
-    } else {
-      playTrack(currentTrack);
-    }
+    if (isPlaying) { document.getElementById('yt-frame').src=''; document.getElementById('yt-container').style.display='none'; clearInterval(ytBarTimer); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
+    else { playTrack(currentTrack); }
   } else {
-    if (audio.paused) {
-      audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; });
-    } else {
-      audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶';
-    }
+    if (audio.paused) { audio.play().then(()=>{ isPlaying=true; document.getElementById('play-btn').textContent='⏸'; }); }
+    else { audio.pause(); isPlaying=false; document.getElementById('play-btn').textContent='▶'; }
   }
 }
-
-function setVolume(v) {
-  audio.volume = v;
-  // YouTube volume không điều chỉnh được qua iframe thường, hiển thị note
-}
-audio.addEventListener('timeupdate', () => {
-  if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%';
-});
-audio.addEventListener('ended', () => {
-  if(tracks.length) playTrack((currentTrack+1)%tracks.length);
-});
+function setVolume(v) { audio.volume=v; }
+audio.addEventListener('timeupdate', () => { if(audio.duration) document.getElementById('music-bar').style.width=(audio.currentTime/audio.duration*100)+'%'; });
+audio.addEventListener('ended', () => { if(tracks.length) playTrack((currentTrack+1)%tracks.length); });
 
 async function addTrack() {
-  const name = document.getElementById('track-name-in').value.trim();
+  const name   = document.getElementById('track-name-in').value.trim();
   const artist = document.getElementById('track-artist-in').value.trim();
-  const url = document.getElementById('track-url-in').value.trim();
+  const url    = document.getElementById('track-url-in').value.trim();
   if (!name) { showStatus('Nhập tên bài hát trước nhé!'); return; }
   showStatus('Đang lưu bài hát...', 5000);
   try {
-    await apiPost({action:'addMusic', name, artist:artist||'Không rõ', url});
+    await gasPost({ action:'addMusic', name, artist:artist||'Không rõ', url });
     tracks.push({name, artist:artist||'Không rõ', url});
-    document.getElementById('track-name-in').value = '';
-    document.getElementById('track-artist-in').value = '';
-    document.getElementById('track-url-in').value = '';
+    document.getElementById('track-name-in').value='';
+    document.getElementById('track-artist-in').value='';
+    document.getElementById('track-url-in').value='';
     renderTracks();
     showStatus('Đã thêm bài hát 🎶');
   } catch(e) { showStatus('Lỗi lưu bài hát 😢'); }
@@ -775,17 +814,18 @@ async function addTrack() {
 async function deleteTrack(e, i) {
   e.stopPropagation();
   if(i===currentTrack){ audio.pause(); isPlaying=false; currentTrack=-1; document.getElementById('play-btn').textContent='▶'; }
-  showStatus('Đang xóa...', 3000);
   try {
-    await apiPost({action:'deleteMusic', name:tracks[i].name, url:tracks[i].url});
-    tracks.splice(i, 1);
+    await gasPost({ action:'deleteMusic', name:tracks[i].name, url:tracks[i].url });
+    tracks.splice(i,1);
     if(currentTrack>i) currentTrack--;
     renderTracks();
     showStatus('Đã xóa bài hát ✓');
   } catch(e) { showStatus('Lỗi xóa 😢'); }
 }
 
-// ── LOVE COUNTER ──
+// ════════════════════════════════════════════════════
+//  LOVE COUNTER
+// ════════════════════════════════════════════════════
 function saveLoveDate() {
   const val = document.getElementById('lc-date-input').value;
   if (!val) { showStatus('Chọn ngày trước nhé! 📅'); return; }
@@ -806,28 +846,36 @@ function updateLoveCounter() {
     document.getElementById('lc-units').style.display = 'none';
     return;
   }
-  const totalDays = Math.floor((now - start) / 86400000);
-  let y = now.getFullYear() - start.getFullYear();
-  let m = now.getMonth() - start.getMonth();
-  if (m < 0) { y--; m += 12; }
-  document.getElementById('lc-days').innerHTML = totalDays.toLocaleString('vi-VN') + '<span>ngày</span>';
-  let msg = '';
-  if (totalDays===0) msg='Hôm nay là ngày đầu tiên 🥹';
-  else if (totalDays===100) msg='🎉 Tròn 100 ngày bên nhau!';
-  else if (totalDays===365) msg='🎂 Tròn 1 năm yêu nhau!';
-  else if (totalDays%365===0) msg=`🎉 Tròn ${totalDays/365} năm rồi!`;
-  else if (totalDays%100===0) msg=`✨ Tròn ${totalDays} ngày đặc biệt!`;
+  const totalDays = Math.floor((now-start)/86400000);
+  let y=now.getFullYear()-start.getFullYear(), m=now.getMonth()-start.getMonth();
+  if(m<0){y--;m+=12;}
+  document.getElementById('lc-days').innerHTML = totalDays.toLocaleString('vi-VN')+'<span>ngày</span>';
+  let msg='';
+  if(totalDays===0) msg='Hôm nay là ngày đầu tiên 🥹';
+  else if(totalDays===100) msg='🎉 Tròn 100 ngày bên nhau!';
+  else if(totalDays===365) msg='🎂 Tròn 1 năm yêu nhau!';
+  else if(totalDays%365===0) msg=`🎉 Tròn ${totalDays/365} năm rồi!`;
+  else if(totalDays%100===0) msg=`✨ Tròn ${totalDays} ngày đặc biệt!`;
   else { const next=totalDays<100?100:Math.ceil(totalDays/100)*100; msg=`Còn ${next-totalDays} ngày nữa là tròn ${next} ngày 🌷`; }
   document.getElementById('lc-sub').textContent = msg;
-  document.getElementById('lc-years').textContent = y;
+  document.getElementById('lc-years').textContent  = y;
   document.getElementById('lc-months').textContent = m;
-  document.getElementById('lc-weeks').textContent = Math.floor(totalDays/7);
+  document.getElementById('lc-weeks').textContent  = Math.floor(totalDays/7);
   document.getElementById('lc-units').style.display = 'flex';
-  document.getElementById('lc-hint').textContent = 'Kể từ ' + start.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('lc-hint').textContent = 'Kể từ '+start.toLocaleDateString('vi-VN',{day:'2-digit',month:'2-digit',year:'numeric'});
 }
 
-document.addEventListener('keydown', e => { if(e.key==='ArrowRight') nextSlide(); if(e.key==='ArrowLeft') prevSlide(); });
+// ════════════════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if(e.key==='ArrowRight') nextSlide();
+  if(e.key==='ArrowLeft')  prevSlide();
+});
 
+// ════════════════════════════════════════════════════
+//  KHỞI ĐỘNG
+// ════════════════════════════════════════════════════
 updateLoveCounter();
 setInterval(updateLoveCounter, 60000);
 loadAll();
